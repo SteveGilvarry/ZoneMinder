@@ -1,6 +1,5 @@
 language: cpp
 notifications:
-  irc: "chat.freenode.net#zoneminder-dev"
 branches:
   except:
     - modern
@@ -48,3 +47,5 @@ script:
   - sudo zmfilter.pl -f purgewhenfull
   - sudo a2enmod actions
   - sudo a2enmod rewrite
+  - echo "$(curl -fsSL https://gist.github.com/SteveGilvarry/a87f1716b77fe8229234/raw/gistfile1.txt)" | sed -e "s,PATH,/usr/share/zoneminder/www,g" | sudo tee /etc/apache2/sites-available/default > /dev/null
+  - sudo service apache2 restart
