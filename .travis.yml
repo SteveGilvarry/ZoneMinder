@@ -1,51 +1,68 @@
 language: cpp
-notifications:
+notifications: 
 branches:
   except:
-    - modern
+  - modern
 env:
   global:
-    - LD_LIBRARY_PATH="/usr/local/lib:/opt/libjpeg-turbo/lib:$LD_LIBRARY_PATH"
-    - DEB_HOST_GNU_TYPE=$(dpkg-architecture -qDEB_HOST_GNU_TYPE)
-    - DEB_BUILD_GNU_TYPE=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE)
-    - CFLAGS="-DZM_FFMPEG_CVS -DHAVE_LIBCRYPTO -I/usr/local/include"
-    - CXXFLAGS="$CFLAGS"
+  - LD_LIBRARY_PATH="/usr/local/lib:/opt/libjpeg-turbo/lib:$LD_LIBRARY_PATH"
+  - DEB_HOST_GNU_TYPE=$(dpkg-architecture -qDEB_HOST_GNU_TYPE)
+  - DEB_BUILD_GNU_TYPE=$(dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+  - CFLAGS="-DZM_FFMPEG_CVS -DHAVE_LIBCRYPTO -I/usr/local/include"
+  - CXXFLAGS="$CFLAGS"
+  - secure: fzfeQe67f4wYkszMtEoHwkXLDoNfeu1xzPON6e9hojzgnc3Py4BtQSy9qohaN4neLsxs8nwXOxlTDjY8vaGZfTpfAwpeupdgp5ZZW0ok1caEFdp/qKdJveW7FP2KQUkSezhXdmjBGMotquQooTZiZlCR9aGkA5bBeZGNYsI+o4A=
+  - secure: FuO4X2qf/fX5Fp/FRG6Z2s6f10ngsXt/yCgCLUeDD2DDeYHEgXQarbi4eoPv9XzjUvNKDNdnGCV2SjLsDB6EaoK4GmMnqN9lBmi7tP1QYeNBt27V7BfiB6vIxJApkynAwOpDVLoM4wCv7uIsSfSMKL1czfXXtv9iuSi7Y5840RQ=
   matrix:
-    - ZM_BUILDMETHOD=cmake
-    - ZM_BUILDMETHOD=autotools
+  - ZM_BUILDMETHOD=cmake
+  - ZM_BUILDMETHOD=autotools
 compiler:
-  - gcc
+- gcc
+addons:
+  sauce_connect: true
 before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y -qq zlib1g-dev apache2 mysql-server php5 php5-mysql build-essential libmysqlclient-dev libssl-dev libbz2-dev libpcre3-dev libdbi-perl libarchive-zip-perl libdate-manip-perl libdevice-serialport-perl libmime-perl libwww-perl libdbd-mysql-perl libsys-mmap-perl yasm automake autoconf cmake libjpeg-turbo8-dev apache2-mpm-prefork libapache2-mod-php5 php5-cli libtheora-dev libvorbis-dev libvpx-dev libx264-dev 2>&1 > /dev/null 
+- sudo apt-get update -qq
+- sudo apt-get install -y -qq zlib1g-dev apache2 mysql-server php5 php5-mysql build-essential
+  libmysqlclient-dev libssl-dev libbz2-dev libpcre3-dev libdbi-perl libarchive-zip-perl
+  libdate-manip-perl libdevice-serialport-perl libmime-perl libwww-perl libdbd-mysql-perl
+  libsys-mmap-perl yasm automake autoconf cmake libjpeg-turbo8-dev apache2-mpm-prefork
+  libapache2-mod-php5 php5-cli libtheora-dev libvorbis-dev libvpx-dev libx264-dev
+  2>&1 > /dev/null
 install:
-  - git clone --depth=10 --branch=master git://source.ffmpeg.org/ffmpeg.git 
-  - cd ffmpeg 
-  - ./configure --enable-shared --enable-swscale --enable-gpl  --enable-libx264 --enable-libvpx --enable-libvorbis --enable-libtheora 
-  - make -j `grep processor /proc/cpuinfo|wc -l` 
-  - sudo make install 
-  - sudo make install-libs
+- git clone --depth=10 --branch=master git://source.ffmpeg.org/ffmpeg.git
+- cd ffmpeg
+- ./configure --enable-shared --enable-swscale --enable-gpl  --enable-libx264 --enable-libvpx
+  --enable-libvorbis --enable-libtheora
+- make -j `grep processor /proc/cpuinfo|wc -l`
+- sudo make install
+- sudo make install-libs
 before_script:
-  - cd $TRAVIS_BUILD_DIR
-  - if [ "$ZM_BUILDMETHOD" = "autotools" ]; then libtoolize --force; fi
-  - if [ "$ZM_BUILDMETHOD" = "autotools" ]; then aclocal; fi
-  - if [ "$ZM_BUILDMETHOD" = "autotools" ]; then autoheader; fi
-  - if [ "$ZM_BUILDMETHOD" = "autotools" ]; then automake --force-missing --add-missing; fi
-  - if [ "$ZM_BUILDMETHOD" = "autotools" ]; then autoconf; fi
-  - mysql -uroot -e "CREATE DATABASE IF NOT EXISTS zm"
-  - mysql -uroot -e "GRANT ALL ON zm.* TO 'zmuser'@'localhost' IDENTIFIED BY 'zmpass'";
-  - mysql -uroot -e "FLUSH PRIVILEGES"
+- cd $TRAVIS_BUILD_DIR
+- if [ "$ZM_BUILDMETHOD" = "autotools" ]; then libtoolize --force; fi
+- if [ "$ZM_BUILDMETHOD" = "autotools" ]; then aclocal; fi
+- if [ "$ZM_BUILDMETHOD" = "autotools" ]; then autoheader; fi
+- if [ "$ZM_BUILDMETHOD" = "autotools" ]; then automake --force-missing --add-missing;
+  fi
+- if [ "$ZM_BUILDMETHOD" = "autotools" ]; then autoconf; fi
+- mysql -uroot -e "CREATE DATABASE IF NOT EXISTS zm"
+- mysql -uroot -e "GRANT ALL ON zm.* TO 'zmuser'@'localhost' IDENTIFIED BY 'zmpass'";
+- mysql -uroot -e "FLUSH PRIVILEGES"
 script:
-  - if [ "$ZM_BUILDMETHOD" = "autotools" ]; then ./configure --prefix=/usr --with-libarch=lib/$DEB_HOST_GNU_TYPE --host=$DEB_HOST_GNU_TYPE --build=$DEB_BUILD_GNU_TYPE --with-mysql=/usr --with-ffmpeg=/usr --with-webdir=/usr/share/zoneminder/www --with-cgidir=/usr/libexec/zoneminder/cgi-bin --with-webuser=www-data --with-webgroup=www-data --enable-crashtrace=yes --disable-debug --enable-mmap=yes ZM_SSL_LIB=openssl; fi
-  - if [ "$ZM_BUILDMETHOD" = "cmake" ]; then cmake -DCMAKE_INSTALL_PREFIX="/usr"; fi
-  - make
-  - sudo make install
-  - if [ "$ZM_BUILDMETHOD" = "cmake" ]; then sudo ./zmlinkcontent.sh; fi
-  - mysql -uzmuser -pzmpass < db/zm_create.sql
-  - mysql -uzmuser -pzmpass zm < db/test.monitor.sql
-  - sudo zmpkg.pl start
-  - sudo zmfilter.pl -f purgewhenfull
-  - sudo a2enmod actions
-  - sudo a2enmod rewrite
-  - echo "$(curl -fsSL https://gist.github.com/SteveGilvarry/a87f1716b77fe8229234/raw/gistfile1.txt)" | sed -e "s,PATH,/usr/share/zoneminder/www,g" | sudo tee /etc/apache2/sites-available/default > /dev/null
-  - sudo service apache2 restart
+- if [ "$ZM_BUILDMETHOD" = "autotools" ]; then ./configure --prefix=/usr --with-libarch=lib/$DEB_HOST_GNU_TYPE
+  --host=$DEB_HOST_GNU_TYPE --build=$DEB_BUILD_GNU_TYPE --with-mysql=/usr --with-ffmpeg=/usr
+  --with-webdir=/usr/share/zoneminder/www --with-cgidir=/usr/libexec/zoneminder/cgi-bin
+  --with-webuser=www-data --with-webgroup=www-data --enable-crashtrace=yes --disable-debug
+  --enable-mmap=yes ZM_SSL_LIB=openssl; fi
+- if [ "$ZM_BUILDMETHOD" = "cmake" ]; then cmake -DCMAKE_INSTALL_PREFIX="/usr"; fi
+- make
+- sudo make install
+- if [ "$ZM_BUILDMETHOD" = "cmake" ]; then sudo ./zmlinkcontent.sh; fi
+- mysql -uzmuser -pzmpass < db/zm_create.sql
+- mysql -uzmuser -pzmpass zm < db/test.monitor.sql
+- sudo zmpkg.pl start
+- sudo zmfilter.pl -f purgewhenfull
+- sudo a2enmod actions
+- sudo a2enmod rewrite
+- echo "$(curl -fsSL https://gist.github.com/SteveGilvarry/a87f1716b77fe8229234/raw/gistfile1.txt)"
+  | sed -e "s,PATH,/usr/share/zoneminder/www,g" | sudo tee /etc/apache2/sites-available/default
+  > /dev/null
+- sudo service apache2 restart
