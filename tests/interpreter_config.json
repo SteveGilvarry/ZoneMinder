@@ -21,7 +21,7 @@
         }
       ],
       "scripts": [
-        "tests/Selenium/*"
+        "tests/selenium/*"
       ]
     }
   ]
