@@ -5,7 +5,7 @@
   "steps": [
     {
       "type": "get",
-      "url": "http://zonemindersg.com/www/"
+      "url": "http://127.0.0.1/www/"
     },
     {
       "type": "verifyTextPresent",
