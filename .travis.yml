@@ -68,5 +68,5 @@ script:
   | sed -e "s,PATH,/usr/share/zoneminder/www,g" | sudo tee /etc/apache2/sites-available/default
   > /dev/null
 - sudo service apache2 restart
-- sudo npm install -g se-interpreter
+- npm install -g se-interpreter
 - "se-interpreter tests/interpreter_config.json"
