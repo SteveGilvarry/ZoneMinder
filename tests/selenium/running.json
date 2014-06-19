@@ -10,6 +10,20 @@
     {
       "type": "verifyTextPresent",
       "text": "ZoneMinder Console - Running - v1.27"
+    },
+    {
+      "type": "clickElement",
+      "locator": {
+        "type": "css selector",
+        "value": "html"
+      }
+    },
+    {
+      "type": "clickElement",
+      "locator": {
+        "type": "link text",
+        "value": "Log"
+      }
     }
   ],
   "data": {
