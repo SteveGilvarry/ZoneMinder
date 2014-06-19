@@ -19,6 +19,8 @@ env:
   - ZM_BUILDMETHOD=autotools
 compiler:
 - gcc
+addons:
+  sauce_connect:
 before_install:
 - sudo apt-get update -qq
 - sudo apt-get install -y -qq zlib1g-dev apache2 mysql-server php5 php5-mysql build-essential
