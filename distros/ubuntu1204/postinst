@@ -2,17 +2,6 @@
 
 set -e
 
-lighttpd_install() {
-	if [ ! -f /etc/lighttpd/conf-available/50-phpmyadmin.conf ] ; then
-		if which lighty-enable-mod >/dev/null 2>&1 ; then
-			ln -s ../../phpmyadmin/lighttpd.conf /etc/lighttpd/conf-available/50-phpmyadmin.conf
-			# We also need auth to protect setup.php
-			lighty-enable-mod phpmyadmin auth fastcgi fastcgi-php
-		else
-			echo "Lighttpd not installed, skipping"
-		fi
-	fi
-
 apache_install() {
 	mkdir -p /etc/apache2/conf-available
 	ln -sf ../../zoneminder/apache.conf /etc/apache2/conf-available/zoneminder.conf
