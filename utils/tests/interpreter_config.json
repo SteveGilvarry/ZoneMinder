@@ -19,6 +19,17 @@
             "tunnel-identifier": "${TRAVIS_JOB_NUMBER}",
             "public":"public"
           }
+          "browserOptions": {
+            "browserName": "chrome",
+            "build": "${TRAVIS_BUILD_NUMBER}",
+            "tags": [
+              "${TRAVIS_BRANCH}"
+            ],
+            "username": "${SAUCE_USERNAME}",
+            "accessKey": "${SAUCE_ACCESS_KEY}",
+            "tunnel-identifier": "${TRAVIS_JOB_NUMBER}",
+            "public":"public"
+          }
         }
       ],
       "scripts": [
