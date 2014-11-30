@@ -18,6 +18,12 @@
             "accessKey": "${SAUCE_ACCESS_KEY}",
             "tunnel-identifier": "${TRAVIS_JOB_NUMBER}",
             "public":"public"
+          }
+        },
+        {
+          "driverOptions": {
+            "host": "localhost",
+            "port": 4445
           },
           "browserOptions": {
             "browserName": "chrome",
