@@ -6,6 +6,7 @@ node interpreter.js --browser-browserName=firefox --driver-host=ondemand.saucela
 
 You can also use --listener-silent=true to prevent the default listener output from happening, just like the --silent command.
 */
+
 var https = require('https');
 var util = require('util');
 
@@ -56,6 +57,10 @@ Listener.prototype.startStep = function(testRun, step) {
 
 Listener.prototype.endStep = function(testRun, step, info) {
   if (this.originalListener) { this.originalListener.endStep(testRun, step, info); }
+};
+
+Listener.prototype.endAllRuns = function(num_runs, successes) {
+  if (this.originalListener) { this.originalListener.endAllRuns(num_runs, successes); }
 };
 
 exports.getInterpreterListener = function(testRun, options, interpreter_module) {
