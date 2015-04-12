@@ -28,7 +28,7 @@ $eid = validInt($_REQUEST['eid']);
 if ( !empty($_REQUEST['fid']) )
     $fid = validInt($_REQUEST['fid']);
 
-$sql = 'SELECT E.*,M.Name AS MonitorName,M.DefaultScale FROM Events AS E INNER JOIN Monitors AS M ON E.MonitorId = M.Id WHERE E.Id = ?';
+$sql = 'SELECT E.*,M.Name AS MonitorName,M.DefaultScale,M.VideoWriter FROM Events AS E INNER JOIN Monitors AS M ON E.MonitorId = M.Id WHERE E.Id = ?';
 $event = dbFetchOne( $sql, NULL, array($eid) );
 
 if ( !empty($fid) ) {
@@ -55,6 +55,7 @@ else
 
 $imageData = getImageSrc( $event, $frame, $scale, (isset($_REQUEST['show']) && $_REQUEST['show']=="capt") );
 
+# $imagePath = $imageData['thumbPath'];
 $imagePath = $imageData['thumbPath'];
 $eventPath = $imageData['eventPath'];
 $dImagePath = sprintf( "%s/%0".ZM_EVENT_IMAGE_DIGITS."d-diag-d.jpg", $eventPath, $frame['FrameId'] );
@@ -75,7 +76,13 @@ xhtmlHeaders(__FILE__, $SLANG['Frame']." - ".$event['Id']." - ".$frame['FrameId'
       <h2><?php echo $SLANG['Frame'] ?> <?php echo $event['Id']."-".$frame['FrameId']." (".$frame['Score'].")" ?></h2>
     </div>
     <div id="content">
-      <p id="image"><?php if ( $imageData['hasAnalImage'] ) { ?><a href="?view=frame&amp;eid=<?php echo $event['Id'] ?>&amp;fid=<?php echo $frame['FrameId'] ?>&amp;scale=<?php echo $scale ?>&amp;show=<?php echo $imageData['isAnalImage']?"capt":"anal" ?>"><?php } ?><img src="<?php echo viewImagePath( $imagePath ) ?>" width="<?php echo reScale( $event['Width'], $event['DefaultScale'], $scale ) ?>" height="<?php echo reScale( $event['Height'], $event['DefaultScale'], $scale ) ?>" alt="<?php echo $frame['EventId']."-".$frame['FrameId'] ?>" class="<?php echo $imageData['imageClass'] ?>"/><?php if ( $imageData['hasAnalImage'] ) { ?></a><?php } ?></p>
+      <p id="image">
+<?php if ( in_array($event['VideoWriter'],array("1","2")) ) { ?>
+<img src="?view=image-ffmpeg&eid=<?php echo $event['Id'] ?>&fid=<?php echo $frame['FrameId'] ?>&scale=<?php echo $event['DefaultScale'] ?>" class="<?php echo $imageData['imageClass'] ?>">
+<?php } else {
+if ( $imageData['hasAnalImage'] ) { ?><a href="?view=frame&amp;eid=<?php echo $event['Id'] ?>&amp;fid=<?php echo $frame['FrameId'] ?>&amp;scale=<?php echo $scale ?>&amp;show=<?php echo $imageData['isAnalImage']?"capt":"anal" ?>"><?php } ?><img src="<?php echo viewImagePath( $imagePath ) ?>" width="<?php echo reScale( $event['Width'], $event['DefaultScale'], $scale ) ?>" height="<?php echo reScale( $event['Height'], $event['DefaultScale'], $scale ) ?>" alt="<?php echo $frame['EventId']."-".$frame['FrameId'] ?>" class="<?php echo $imageData['imageClass'] ?>"/><?php if ( $imageData['hasAnalImage'] ) { ?></a><?php } ?>
+<?php } ?>
+</p>
       <p id="controls">
 <?php if ( $frame['FrameId'] > 1 ) { ?>
         <a id="firstLink" href="?view=frame&amp;eid=<?php echo $event['Id'] ?>&amp;fid=<?php echo $firstFid ?>&amp;scale=<?php echo $scale ?>"><?php echo $SLANG['First'] ?></a>
