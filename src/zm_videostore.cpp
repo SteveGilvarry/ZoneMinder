@@ -58,6 +58,9 @@ VideoStore::VideoStore(const char *filename_in, const char *format_in,
                     filename, format);
         }
     }
+    //Set options for fragmented mp4
+	av_opt_set(oc, "movflags", "+empty_moov", 0);
+	av_opt_set(oc, "movflags", "+frag_keyframe", 0);
         
     fmt = oc->oformat;
     
