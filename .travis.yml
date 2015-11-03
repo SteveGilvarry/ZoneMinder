@@ -1,3 +1,5 @@
+sudo: required
+dist: trusty
 language: cpp
 notifications:
   irc: "chat.freenode.net#zoneminder-dev"
