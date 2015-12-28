@@ -302,7 +302,8 @@ bool Zone::CheckAlarms( const Image *comp_image )
 	unsigned int hi_y = polygon.HiY();
 
 	Debug( 4, "Checking alarms for zone %d/%s in lines %d -> %d", id, label, lo_y, hi_y );
-	
+
+	Storage *storage = monitor->getStorage();
 	
 	Debug( 5, "Checking for alarmed pixels" );
 	/* if(config.cpu_extensions && sseversion >= 20) {
@@ -315,7 +316,7 @@ bool Zone::CheckAlarms( const Image *comp_image )
 	if ( config.record_diag_images )
 	{
 		static char diag_path[PATH_MAX] = "";
-		snprintf( diag_path, sizeof(diag_path), "%s/%s/diag-%d-%d.jpg", config.dir_events, monitor->Name(), id, 1 );
+		snprintf( diag_path, sizeof(diag_path), "%s/%s/diag-%d-%d.jpg", storage->Path(), monitor->Name(), id, 1 );
 		diff_image->WriteJpeg( diag_path );
 	}
 	
@@ -412,7 +413,7 @@ bool Zone::CheckAlarms( const Image *comp_image )
 		if ( config.record_diag_images )
 		{
 			static char diag_path[PATH_MAX] = "";
-			snprintf( diag_path, sizeof(diag_path), "%s/%d/diag-%d-%d.jpg", config.dir_events, monitor->Id(), id, 2 );
+			snprintf( diag_path, sizeof(diag_path), "%s/%d/diag-%d-%d.jpg", storage->Path(), monitor->Id(), id, 2 );
 			diff_image->WriteJpeg( diag_path );
 		}
 		
@@ -653,7 +654,7 @@ bool Zone::CheckAlarms( const Image *comp_image )
 			if ( config.record_diag_images )
 			{
 				static char diag_path[PATH_MAX] = "";
-				snprintf( diag_path, sizeof(diag_path), "%s/%d/diag-%d-%d.jpg", config.dir_events, monitor->Id(), id, 3 );
+				snprintf( diag_path, sizeof(diag_path), "%s/%d/diag-%d-%d.jpg", storage->Path(), monitor->Id(), id, 3 );
 				diff_image->WriteJpeg( diag_path );
 			}
 
@@ -710,7 +711,7 @@ bool Zone::CheckAlarms( const Image *comp_image )
 			if ( config.record_diag_images )
 			{
 				static char diag_path[PATH_MAX] = "";
-				snprintf( diag_path, sizeof(diag_path), "%s/%d/diag-%d-%d.jpg", config.dir_events, monitor->Id(), id, 4 );
+				snprintf( diag_path, sizeof(diag_path), "%s/%d/diag-%d-%d.jpg", storage->Path(), monitor->Id(), id, 4 );
 				diff_image->WriteJpeg( diag_path );
 			}
 			Debug( 5, "Got %d blob pixels, %d blobs, need %d -> %d, %d -> %d", alarm_blob_pixels, alarm_blobs, min_blob_pixels, max_blob_pixels, min_blobs, max_blobs );           
@@ -878,6 +879,7 @@ bool Zone::CheckAlarms( const Image *comp_image )
 				score = 0;
 				image = new Image( bl_image );
 			}
+			
 			// Only need to delete this when 'image' becomes detached and points somewhere else
 			delete diff_image;
 		}

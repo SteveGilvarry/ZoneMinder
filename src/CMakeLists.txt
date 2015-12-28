@@ -4,7 +4,7 @@
 configure_file(zm_config.h.in "${CMAKE_CURRENT_BINARY_DIR}/zm_config.h" @ONLY)
 
 # Group together all the source files that are used by all the binaries (zmc, zma, zmu, zms etc)
-set(ZM_BIN_SRC_FILES zm_box.cpp zm_buffer.cpp zm_camera.cpp zm_comms.cpp zm_config.cpp zm_coord.cpp zm_curl_camera.cpp zm.cpp zm_db.cpp zm_logger.cpp zm_event.cpp zm_exception.cpp zm_file_camera.cpp zm_ffmpeg_camera.cpp  zm_image.cpp zm_jpeg.cpp zm_libvlc_camera.cpp zm_local_camera.cpp zm_monitor.cpp zm_ffmpeg.cpp zm_mpeg.cpp zm_poly.cpp zm_regexp.cpp zm_remote_camera.cpp zm_remote_camera_http.cpp zm_remote_camera_rtsp.cpp zm_rtp.cpp  zm_rtp_ctrl.cpp zm_rtp_data.cpp zm_rtp_source.cpp zm_rtsp.cpp zm_rtsp_auth.cpp zm_sdp.cpp zm_signal.cpp zm_stream.cpp zm_thread.cpp zm_time.cpp zm_timer.cpp zm_user.cpp zm_utils.cpp zm_video.cpp zm_videostore.cpp zm_zone.cpp)
+set(ZM_BIN_SRC_FILES zm_box.cpp zm_buffer.cpp zm_camera.cpp zm_comms.cpp zm_config.cpp zm_coord.cpp zm_curl_camera.cpp zm.cpp zm_db.cpp zm_logger.cpp zm_event.cpp zm_exception.cpp zm_file_camera.cpp zm_ffmpeg_camera.cpp  zm_image.cpp zm_jpeg.cpp zm_libvlc_camera.cpp zm_local_camera.cpp zm_monitor.cpp zm_ffmpeg.cpp zm_mpeg.cpp zm_poly.cpp zm_regexp.cpp zm_remote_camera.cpp zm_remote_camera_http.cpp zm_remote_camera_rtsp.cpp zm_rtp.cpp  zm_rtp_ctrl.cpp zm_rtp_data.cpp zm_rtp_source.cpp zm_rtsp.cpp zm_rtsp_auth.cpp zm_sdp.cpp zm_signal.cpp zm_stream.cpp zm_thread.cpp zm_time.cpp zm_timer.cpp zm_user.cpp zm_utils.cpp zm_video.cpp zm_videostore.cpp zm_zone.cpp zm_storage.cpp)
 
 if(ZM_PLUGIN_SUPPORT)
 	set(ZM_BIN_SRC_FILES ${ZM_BIN_SRC_FILES} zm_detector.cpp zm_image_analyser.cpp zm_plugin.cpp zm_plugin_manager.cpp)
@@ -23,7 +23,7 @@ IF(UNIX AND NOT WIN32)
 ENDIF(UNIX AND NOT WIN32)
 
 # A fix for cmake recompiling the source files for every target.
-add_library(zoneminder STATIC ${ZM_BIN_SRC_FILES})
+add_library(zm STATIC ${ZM_BIN_SRC_FILES})
 
 add_executable(zmc zmc.cpp)
 add_executable(zma zma.cpp)
@@ -32,12 +32,12 @@ add_executable(zmf zmf.cpp)
 add_executable(zms zms.cpp)
 add_executable(zmstreamer zmstreamer.cpp)
 
-target_link_libraries(zmc -ldl zoneminder ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
-target_link_libraries(zma -ldl zoneminder ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
-target_link_libraries(zmu -ldl zoneminder ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
-target_link_libraries(zmf -ldl zoneminder ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
-target_link_libraries(zms -ldl zoneminder ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
-target_link_libraries(zmstreamer -ldl zoneminder ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
+target_link_libraries(zmc zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
+target_link_libraries(zma zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
+target_link_libraries(zmu zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
+target_link_libraries(zmf zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
+target_link_libraries(zms zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
+target_link_libraries(zmstreamer zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
 
 # Generate man files for the binaries destined for the bin folder
 FOREACH(CBINARY zma zmc zmf zmu zmstreamer)
@@ -52,5 +52,5 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/nph-zms DESTINATION "${ZM_CGIDIR}")
 if(ZM_PLUGIN_SUPPORT)
 	install(FILES jinclude.h zm_db.h zm_detector.h zm_logger.h zm_poly.h zm_mem_utils.h zm_box.h zm_ffmpeg.h zm_plugin_manager.h zm_plugin.h zm_jpeg.h zm_mpeg.h zm_image_analyser.h zm_zone.h zm_rgb.h zm_utils.h zm_event.h zm_stream.h zm_coord.h zm_image.h DESTINATION include/zoneminder)
 	install(FILES "${CMAKE_CURRENT_BINARY_DIR}/zm_config.h" "${CMAKE_CURRENT_BINARY_DIR}/zm_config_defines.h" DESTINATION include/zoneminder)
-	install(TARGETS zoneminder ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+	install(TARGETS zm ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif(ZM_PLUGIN_SUPPORT)

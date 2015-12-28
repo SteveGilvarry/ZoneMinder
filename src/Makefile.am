@@ -22,6 +22,7 @@ bin_PROGRAMS = \
 	zmstreamer
 
 zm_SOURCES = \
+	zm_storage.cpp \
 	zm_box.cpp \
 	zm_buffer.cpp \
 	zm_camera.cpp \
@@ -115,7 +116,8 @@ zmf_LDADD = $(zm_LDADD)
 zmstreamer_LDADD = $(zm_LDADD)
 
 noinst_HEADERS = \
-	zm_buffer.h \
+    zm_storage.h \	
+    zm_buffer.h \
 	zm_camera.h \
 	zm_comms.h \
 	zm_curl_camera.h \
