@@ -86,6 +86,8 @@ $attrTypes = array(
     'SystemLoad'  => translate('AttrSystemLoad'),
 	'ServerId'    => translate('AttrServerId'),
 	'ServerName'  => translate('AttrServerName'),
+	'StorageId'   => translate('AttrStorageId'),
+	'StorageName' => translate('AttrStorageName'),
 );
 $opTypes = array(
     '='   => translate('OpEq'),
