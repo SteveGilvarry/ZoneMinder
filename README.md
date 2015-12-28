@@ -2,7 +2,10 @@ ZoneMinder H264 Patch
 
 [![Build Status](https://travis-ci.org/ZoneMinder/ZoneMinder.png?branch=feature-h264-videostorage)](https://travis-ci.org/ZoneMinder/ZoneMinder)  [![Bountysource](https://api.bountysource.com/badge/team?team_id=204&style=bounties_received)](https://www.bountysource.com/teams/zoneminder/issues?utm_source=ZoneMinder&utm_medium=shield&utm_campaign=bounties_received)
 
-##Feature-h264-videostorage Branch Details
+##ZoneMinder2 The Quickening Branch Details
+This branch is a combination of expected 1.29 release, with next version features merged. This includes h264-videostorage, storageareas and plugins.
+
+##feature-h264-videostorage Notes
 This branch supports direct recording of h264 cameras into MP4 format uisng the h264 Passthrough option. As well it provides h264 encoding for local or mpeg cameras. If you encounter any issues, please open an issue on GitHub and attach it to the h264 milestone. But do remember this is bleeding edge so it will have problems.
 Thanks to @chriswiggins and @mastertheknife for their work, @SteveGilvarry is now maintaining this branch and welcomes any assistance.
 
