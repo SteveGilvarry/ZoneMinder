@@ -127,6 +127,7 @@ if ( ! empty($_REQUEST['mid']) ) {
 		'V4LMultiBuffer'	=>	'',
 		'V4LCapturesPerFrame'	=>	1,
 		'ServerId'	=>	$Server['Id'],
+		'DoNativeMotDet'	=>	true,
     );
 }
 
@@ -523,6 +524,7 @@ if ( $tab != 'general' )
         <input type="hidden" name="newMonitor[RefBlendPerc]" value="<?php echo validHtmlStr($newMonitor['RefBlendPerc']) ?>"/>
         <input type="hidden" name="newMonitor[AlarmRefBlendPerc]" value="<?php echo validHtmlStr($newMonitor['AlarmRefBlendPerc']) ?>"/>
         <input type="hidden" name="newMonitor[AnalysisFPS]" value="<?php echo validHtmlStr($newMonitor['AnalysisFPS']) ?>"/>
+        <input type="hidden" name="newMonitor[DoNativeMotDet]" value="<?php echo validHtmlStr($newMonitor['DoNativeMotDet']) ?>"/>
         <input type="hidden" name="newMonitor[MaxFPS]" value="<?php echo validHtmlStr($newMonitor['MaxFPS']) ?>"/>
         <input type="hidden" name="newMonitor[AlarmMaxFPS]" value="<?php echo validHtmlStr($newMonitor['AlarmMaxFPS']) ?>"/>
 <?php
@@ -746,6 +748,7 @@ switch ( $tab )
 <?php
         }
 ?>
+            <tr><td><?php echo translate('DoNativeMotionDetection') ?></td><td><input type="checkbox" name="newMonitor[DoNativeMotDet]" value="1"<?php if ( !empty($newMonitor['DoNativeMotDet']) ) { ?> checked="checked"<?php } ?>/></td></tr>
             <tr><td><?php echo translate('Triggers') ?></td><td>
 <?php
         $optTriggers = getSetValues( 'Monitors', 'Triggers' );
