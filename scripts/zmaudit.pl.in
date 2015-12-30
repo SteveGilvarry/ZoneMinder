@@ -115,6 +115,7 @@ if ( ($report + $interactive + $continuous) > 1 )
 my $dbh = zmDbConnect();
 
 require ZoneMinder::Storage;
+require ZoneMinder::Event;
 
 my $max_image_age = 6/24; # 6 hours
 my $max_swap_age = 24/24; # 24 hours
@@ -180,11 +181,18 @@ MAIN: while( $loop ) {
 
 	my $fs_monitors;
 
-	foreach my $Storage ( new ZoneMinder::Storage(), ZoneMinder::Storage->find( ) ) {
+	foreach my $Storage (
+			ZoneMinder::Storage->find( ($Config{ZM_SERVER_ID} ? ( ServerId => $Config{ZM_SERVER_ID} ) : () ) ),
+			new ZoneMinder::Storage(),
+			) {
+		Debug("Checking events in " . $Storage->Path() );
 		chdir( $Storage->Path() );
 
+		# Please note that this glob will take all files beginning with a digit. 
 		foreach my $monitor ( glob("[0-9]*") )
 		{
+			next if $monitor =~ /\D/;
+
 			Debug( "Found filesystem monitor '$monitor'" );
 			my $fs_events = $fs_monitors->{$monitor} = {};
 			( my $monitor_dir ) = ( $monitor =~ /^(.*)$/ ); # De-taint
@@ -262,8 +270,8 @@ MAIN: while( $loop ) {
 			{
 				if ( $fs_events )
 				{
-					while ( my ( $fs_event, $age ) = each(%$fs_events ) )
-					{
+					foreach my $fs_event ( sort { $a <=> $b } keys %$fs_events ) {
+						my $age = $fs_events->{$fs_event};
 						if ( !defined($db_events->{$fs_event}) && ($age < 0 || ($age > $Config{ZM_AUDIT_MIN_AGE})) )
 						{
 							aud_print( "Filesystem event '$fs_monitor/$fs_event' does not exist in database" );
@@ -275,6 +283,7 @@ MAIN: while( $loop ) {
 								$Event->StorageId( $Storage->Id() );
 								$Event->delete_files();
 								$cleaned = 1;
+								delete $fs_events->{$fs_event};
 							}
 						}
 					}
@@ -344,7 +353,10 @@ MAIN: while( $loop ) {
 								$cleaned = 1;
 							}
 						} else {
-							aud_print( "Database event '$db_monitor/$db_event' does not exist in filesystem but too young to delete." );
+							my $Event = new ZoneMinder::Event( $db_event );
+							my $Storage = $Event->Storage();
+
+							aud_print( "Database event '$$Storage{Path}/$db_monitor/$db_event' does not exist in filesystem but too young to delete.\n" );
 						}
                     }
                 }

@@ -60,6 +60,7 @@ use constant START_DELAY => 5; # How long to wait before starting
 
 @EXTRA_PERL_LIB@
 use ZoneMinder;
+require ZoneMinder::Event;
 require ZoneMinder::Filter;
 use DBI;
 use POSIX;
@@ -316,30 +317,8 @@ $dbh->ping();
         {
             if ( $delete_ok )
             {
-                Info( "Deleting event $event->{Id} from Monitor $event->{MonitorId}\n" );
-                # Do it individually to avoid locking up the table for new events
-                my $sql = "delete from Events where Id = ?";
-                my $sth = $dbh->prepare_cached( $sql )
-                    or Fatal( "Can't prepare '$sql': ".$dbh->errstr() );
-                my $res = $sth->execute( $event->{Id} )
-                    or Fatal( "Can't execute '$sql': ".$sth->errstr() );
-
-                if ( ! $Config{ZM_OPT_FAST_DELETE} )
-                {
-                    my $sql = "delete from Frames where EventId = ?";
-                    my $sth = $dbh->prepare_cached( $sql )
-                        or Fatal( "Can't prepare '$sql': ".$dbh->errstr() );
-                    my $res = $sth->execute( $event->{Id} )
-                        or Fatal( "Can't execute '$sql': ".$sth->errstr() );
-
-                    $sql = "delete from Stats where EventId = ?";
-                    $sth = $dbh->prepare_cached( $sql )
-                        or Fatal( "Can't prepare '$sql': ".$dbh->errstr() );
-                    $res = $sth->execute( $event->{Id} )
-                        or Fatal( "Can't execute '$sql': ".$sth->errstr() );
-
-                    deleteEventFiles( $event->{Id}, $event->{MonitorId} );
-                }
+				my $Event = new ZoneMinder::Event( $$event{Id}, $event );
+				$Event->delete();
             }
             else
             {

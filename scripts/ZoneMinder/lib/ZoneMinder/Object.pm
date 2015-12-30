@@ -28,29 +28,9 @@ use 5.006;
 use strict;
 use warnings;
 
-require Exporter;
 require ZoneMinder::Base;
 
-our @ISA = qw(Exporter ZoneMinder::Base);
-
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
-
-# This allows declaration   use ZoneMinder ':all';
-# If you do not need this, moving things directly into @EXPORT or @EXPORT_OK
-# will save memory.
-our %EXPORT_TAGS = (
-    'functions' => [ qw(
-    ) ]
-);
-push( @{$EXPORT_TAGS{all}}, @{$EXPORT_TAGS{$_}} ) foreach keys %EXPORT_TAGS;
-
-our @EXPORT_OK = ( @{ $EXPORT_TAGS{'all'} } );
-
-our @EXPORT = qw();
-
-our $VERSION = $ZoneMinder::Base::VERSION;
+our @ISA = qw(ZoneMinder::Base);
 
 # ==========================================================================
 #
@@ -62,23 +42,19 @@ use ZoneMinder::Config qw(:all);
 use ZoneMinder::Logger qw(:all);
 use ZoneMinder::Database qw(:all);
 
-use POSIX;
-
-use vars qw/ $table $primary_key /;
-
-sub table {
-	$table = $_[1];
-}
-
-sub primary_key {
-	$primary_key = $_[1];
-}
+use vars qw/ $AUTOLOAD /;
 
 sub new {
     my ( $parent, $id, $data ) = @_;
 
 	my $self = {};
 	bless $self, $parent;
+		no strict 'refs';
+		my $primary_key = ${$parent.'::primary_key'};
+		if ( ! $primary_key ) {
+			Error( 'NO primary_key for type ' . $parent );
+			return;
+		} # end if
 	if ( ( $$self{$primary_key} = $id ) or $data ) {
 #$log->debug("loading $parent $id") if $debug or DEBUG_ALL;
 		$self->load( $data );
@@ -90,15 +66,31 @@ sub load {
 	my ( $self, $data ) = @_;
 	my $type = ref $self;
 	if ( ! $data ) {
+		no strict 'refs';
+		my $table = ${$type.'::table'};
+		if ( ! $table ) {
+			Error( 'NO table for type ' . $type );
+			return;
+		} # end if
+		my $primary_key = ${$type.'::primary_key'};
+		if ( ! $primary_key ) {
+			Error( 'NO primary_key for type ' . $type );
+			return;
+		} # end if
+
 		if ( ! $$self{$primary_key} ) { 
 			my ( $caller, undef, $line ) = caller;
 			Error( (ref $self) . "::load called without $primary_key from $caller:$line");
 		} else {
 	#$log->debug("Object::load Loading from db $type");
+			Debug("Loading $type from $table WHERE $primary_key = $$self{$primary_key}");
 			$data = $ZoneMinder::Database::dbh->selectrow_hashref( "SELECT * FROM $table WHERE $primary_key=?", {}, $$self{$primary_key} );
 			if ( ! $data ) {
 				if ( $ZoneMinder::Database::dbh->errstr ) {
 					Error( "Failure to load Object record for $$self{$primary_key}: Reason: " . $ZoneMinder::Database::dbh->errstr );
+				} else {
+			Debug("No Results Loading $type from $table WHERE $primary_key = $$self{$primary_key}");
+					
 				} # end if
 			} # end if
 		} # end if
@@ -107,6 +99,18 @@ sub load {
 		@$self{keys %$data} = values %$data;
 	} # end if
 } # end sub load
+
+sub AUTOLOAD {
+    my ( $self, $newvalue ) = @_;
+    my $type = ref($_[0]);
+    my $name = $AUTOLOAD;
+    $name =~ s/.*://;
+   if ( @_ > 1 ) {
+        return $_[0]{$name} = $_[1];
+	}
+return $_[0]{$name};
+}
+
 
 1;
 __END__
