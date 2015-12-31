@@ -20,16 +20,15 @@ class ConfigsController extends AppController {
  * index method
  *
  * @return void
- */      
-     public function index() {
-                $this->Config->recursive = 0;
-                $configs = $this->Config->find('all');
-                $this->set(array(
-                    'configs' => $configs,
-                    '_serialize' => array('configs')
-                ));
-        }
-
+ */
+	public function index() {
+		$this->Config->recursive = 0;
+		$configs = $this->Config->find('all');
+		$this->set(array(
+			'configs' => $configs,
+			'_serialize' => array('configs')
+		));
+	}
 
 /**
  * view method
