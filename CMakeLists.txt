@@ -143,7 +143,7 @@ set(ZM_NO_CURL "OFF" CACHE BOOL
     "Set to ON to skip cURL checks and force building ZM without cURL. default: OFF")
 set(ZM_NO_X10 "OFF" CACHE BOOL 
     "Set to ON to build ZoneMinder without X10 support. default: OFF")
-set(ZM_ONVIF "OFF" CACHE BOOL 
+set(ZM_ONVIF "ON" CACHE BOOL 
     "Set to ON to enable basic ONVIF support. This is EXPERIMENTAL and may not 
     work with all cameras claiming to be ONVIF compliant. default: OFF")
 set(ZM_PERL_MM_PARMS INSTALLDIRS=vendor NO_PACKLIST=1 NO_PERLLOCAL=1 CACHE STRING 
@@ -158,9 +158,9 @@ set(ZM_PERL_SEARCH_PATH "" CACHE PATH
 	installed outside Perl's default search path.")
 set(ZM_TARGET_DISTRO "" CACHE STRING 
     "Build ZoneMinder for a specific distribution.  Currently, valid names are: f21, f22, el6, el7, OS13")
-set(ZM_PLUGIN_SUPPORT "OFF" CACHE BOOL
+set(ZM_PLUGIN_SUPPORT "ON" CACHE BOOL
     "Set to ON to enable plugin support in ZoneMinder. This is EXPERIMENTAL, default: OFF")
-set(ZM_PLUGIN_COMPIL "OFF" CACHE BOOL
+set(ZM_PLUGIN_COMPIL "ON" CACHE BOOL
     "Set to ON to enable compilation of internal plugins. This is EXPERIMENTAL, default: OFF")
 
 if(ZM_PLUGIN_SUPPORT)
