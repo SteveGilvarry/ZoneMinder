@@ -1,6 +1,7 @@
 <?php
 require_once( 'database.php' );
 class Server {
+
     public function __construct( $IdOrRow = NULL ) {
 		$row = NULL;
 		if ( $IdOrRow ) {
@@ -22,9 +23,22 @@ class Server {
 			$this->{'Hostname'} = '';
 		}
     }
+	public static function find_all() {
+		$servers = array();
+		$result = dbQuery( 'SELECT * FROM Servers ORDER BY Name');
+		$results = $result->fetchALL(PDO::FETCH_CLASS | PDO::FETCH_PROPS_LATE, 'Server' );
+		foreach ( $results as $row => $server_obj ) {
+			$servers[] = $server_obj;
+		}
+		return $servers;
+	}
 
 	public function Url() {
-		return ZM_BASE_PROTOCOL . '://'. $this->Hostname();
+		if ( $this->Id() ) {
+			return ZM_BASE_PROTOCOL . '://'. $this->Hostname();
+		} else {
+			return '';
+		}
 	}
 	public function Hostname() {
 		if ( isset( $this->{'Hostname'} ) and ( $this->{'Hostname'} != '' ) ) {

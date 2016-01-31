@@ -1,7 +1,7 @@
-var events = {};
+var events = new Object();
 
 function showEvent( eid, fid, width, height )
-{    
+{
     var url = '?view=event&eid='+eid+'&fid='+fid;
     url += filterQuery;
     var pop=createPopup( url, 'zmEvent', 'event', width, height );
@@ -22,7 +22,7 @@ function createEventHtml( event, frame )
     if ( event.Archived > 0 )
         eventHtml.addClass( 'archived' );
 
-    new Element( 'p' ).inject( eventHtml ).set( 'text', monitors[event.MonitorId].Name );
+    new Element( 'p' ).inject( eventHtml ).set( 'text', monitorNames[event.MonitorId] );
     new Element( 'p' ).inject( eventHtml ).set( 'text', event.Name+(frame?("("+frame.FrameId+")"):"") );
     new Element( 'p' ).inject( eventHtml ).set( 'text', event.StartTime+" - "+event.Length+"s" );
     new Element( 'p' ).inject( eventHtml ).set( 'text', event.Cause );
@@ -102,18 +102,14 @@ function requestFrameData( eventId, frameId )
 
 function previewEvent( eventId, frameId )
 {
-    
     if ( events[eventId] )
     {
-        var event = events[eventId];
-        if ( event['frames'] )
+        if ( events[eventId]['frames'] )
         {
-            if ( event['frames'][frameId] )
+            if ( events[eventId]['frames'][frameId] )
             {
-                showEventDetail( event['frames'][frameId]['html'] );
-                var imagePath = event.frames[frameId].Image.imagePath;
-                var videoName = event.DefaultVideo;
-                loadEventImage( imagePath, eventId, frameId, event.Width, event.Height, event.Frames/event.Length, videoName, event.Length, event.StartTime, monitors[event.MonitorId]);
+                showEventDetail( events[eventId]['frames'][frameId]['html'] );
+                loadEventImage( events[eventId].frames[frameId].Image.imagePath, eventId, frameId, events[eventId].Width, events[eventId].Height, events[eventId].Frames/events[eventId].Length, events[eventId].DefaultVideo, events[eventId].Length, events[eventId].StartTime, monitors[event.MonitorId]);
                 return;
             }
         }

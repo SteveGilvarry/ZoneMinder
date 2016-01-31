@@ -114,6 +114,7 @@ if ( ($report + $interactive + $continuous) > 1 )
 
 my $dbh = zmDbConnect();
 
+require ZoneMinder::Monitor;
 require ZoneMinder::Storage;
 require ZoneMinder::Event;
 
@@ -211,6 +212,10 @@ MAIN: while( $loop ) {
 					my $count = 0;
 					foreach my $event_link ( @event_links )
 					{
+						if ( $event_link =~ /[^\d\.]/ ) {
+							Warning("Non-event link found $event_link in $day_dir, skipping");
+							next;
+						}
 						Debug( "Checking link $event_link" );
 						( my $event = $event_link ) =~ s/^.*\.//;
 						my $event_path = readlink( $event_link );
@@ -291,7 +296,7 @@ MAIN: while( $loop ) {
 			}
 			else
 			{
-				aud_print( "Filesystem monitor '$fs_monitor' does not exist in database" );
+				aud_print( "Filesystem monitor '$fs_monitor' in $$Storage{Path} does not exist in database" );
 				if ( confirm() )
 				{
 					my $command = "rm -rf $fs_monitor";
@@ -356,7 +361,7 @@ MAIN: while( $loop ) {
 							my $Event = new ZoneMinder::Event( $db_event );
 							my $Storage = $Event->Storage();
 
-							aud_print( "Database event '$$Storage{Path}/$db_monitor/$db_event' does not exist in filesystem but too young to delete.\n" );
+							aud_print( "Database event '".$Storage->Path()."/$db_monitor/$db_event' does not exist in filesystem but too young to delete.\n" );
 						}
                     }
                 }
@@ -364,7 +369,9 @@ MAIN: while( $loop ) {
         }
         else
         {
-            aud_print( "Database monitor '$db_monitor' does not exist in filesystem" );
+			my $Monitor = new ZoneMinder::Monitor( $db_monitor );
+			my $Storage = $Monitor->Storage();
+            aud_print( "Database monitor '$db_monitor' does not exist in filesystem, should have been at ".$Storage->Path()."\n" );
             #if ( confirm() )
             #{
                 # We don't actually do this in case it's new
