@@ -349,10 +349,10 @@ Monitor::Monitor(
     images( 0 ),
     privacy_bitmask( NULL )
 {
-    strncpy( name, p_name, sizeof(name) );
+    strncpy( name, p_name, sizeof(name)-1 );
 
-    strncpy( event_prefix, p_event_prefix, sizeof(event_prefix) );
-    strncpy( label_format, p_label_format, sizeof(label_format) );
+    strncpy( event_prefix, p_event_prefix, sizeof(event_prefix)-1 );
+    strncpy( label_format, p_label_format, sizeof(label_format)-1 );
 
     // Change \n to actual line feeds
     char *token_ptr = label_format;
@@ -4073,7 +4073,7 @@ void MonitorStream::processCommand( const CmdMsg *msg )
 
     DataMsg status_msg;
     status_msg.msg_type = MSG_DATA_WATCH;
-    memcpy( &status_msg.msg_data, &status_data, sizeof(status_msg.msg_data) );
+    memcpy( &status_msg.msg_data, &status_data, sizeof(status_data) );
     int nbytes = 0;
     if ( (nbytes = sendto( sd, &status_msg, sizeof(status_msg), MSG_DONTWAIT, (sockaddr *)&rem_addr, sizeof(rem_addr) )) < 0 )
     {
