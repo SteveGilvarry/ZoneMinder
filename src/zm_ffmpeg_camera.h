@@ -26,6 +26,7 @@
 //#include "zm_utils.h"
 #include "zm_ffmpeg.h"
 #include "zm_videostore.h"
+#include <boost/tokenizer.hpp>
 
 //
 // Class representing 'ffmpeg' cameras, i.e. those which are
@@ -51,6 +52,7 @@ protected:
   _AVPIXELFORMAT    imagePixFormat;
 
   int OpenFfmpeg();
+  int SetFfmpegOptions();
   int ReopenFfmpeg();
   int CloseFfmpeg();
   static int FfmpegInterruptCallback(void *ctx);

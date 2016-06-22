@@ -242,43 +242,8 @@ int FfmpegCamera::OpenFfmpeg() {
   mIsOpening = true;
 
   // Open the input, not necessarily a file
-#if !LIBAVFORMAT_VERSION_CHECK(53, 2, 0, 4, 0)
-  Debug ( 1, "Calling av_open_input_file" );
-  if ( av_open_input_file( &mFormatContext, mPath.c_str(), NULL, 0, NULL ) !=0 )
-#else
-  // Handle options
-  AVDictionary *opts = 0;
-  StringVector opVect = split(Options(), ",");
-  
-  // Set transport method as specified by method field, rtpUni is default
-  if ( Method() == "rtpMulti" )
-    opVect.push_back("rtsp_transport=udp_multicast");
-  else if ( Method() == "rtpRtsp" )
-    opVect.push_back("rtsp_transport=tcp");
-  else if ( Method() == "rtpRtspHttp" )
-    opVect.push_back("rtsp_transport=http");
-  
-    Debug(2, "Number of Options: %d",opVect.size());
-  for (size_t i=0; i<opVect.size(); i++)
-  {
-    StringVector parts = split(opVect[i],"=");
-    if (parts.size() > 1) {
-      parts[0] = trimSpaces(parts[0]);
-      parts[1] = trimSpaces(parts[1]);
-      if ( av_dict_set(&opts, parts[0].c_str(), parts[1].c_str(), 0) == 0 ) {
-        Debug(2, "set option %d '%s' to '%s'", i,  parts[0].c_str(), parts[1].c_str());
-      }
-      else
-      {
-        Warning( "Error trying to set option %d '%s' to '%s'", i, parts[0].c_str(), parts[1].c_str() );
-      }
-        
-    }
-     else
-     {
-       Warning( "Unable to parse ffmpeg option %d '%s', expecting key=value", i, opVect[i].c_str() );
-     }
-  }
+  SetFfmpegOptions();
+
   Debug ( 1, "Calling avformat_open_input" );
 
   mFormatContext = avformat_alloc_context( );
@@ -427,6 +392,46 @@ int FfmpegCamera::OpenFfmpeg() {
   mCanCapture = true;
 
   return 0;
+}
+
+int FfmpegCamera::SetFfmpegOptions() {
+    // Handle options
+  AVDictionary *opts = 0;
+  boost::char_separator<char> sep(", ");
+  boost::tokenizer<boost::char_separator<char> > tokens(Options(), sep);
+    for (const auto& t : tokens) {
+  
+    }
+  StringVector opVect = split(Options(), ",");
+  // Set transport method as specified by method field, rtpUni is default
+  if ( Method() == "rtpMulti" )
+    opVect.push_back("rtsp_transport=udp_multicast");
+  else if ( Method() == "rtpRtsp" )
+    opVect.push_back("rtsp_transport=tcp");
+  else if ( Method() == "rtpRtspHttp" )
+    opVect.push_back("rtsp_transport=http");
+  
+    Debug(2, "Number of Options: %d",opVect.size());
+  for (size_t i=0; i<opVect.size(); i++)
+  {
+    StringVector parts = split(opVect[i],"=");
+    if (parts.size() > 1) {
+      parts[0] = trimSpaces(parts[0]);
+      parts[1] = trimSpaces(parts[1]);
+      if ( av_dict_set(&opts, parts[0].c_str(), parts[1].c_str(), 0) == 0 ) {
+        Debug(2, "set option %d '%s' to '%s'", i,  parts[0].c_str(), parts[1].c_str());
+      }
+      else
+      {
+        Warning( "Error trying to set option %d '%s' to '%s'", i, parts[0].c_str(), parts[1].c_str() );
+      }
+        
+    }
+     else
+     {
+       Warning( "Unable to parse ffmpeg option %d '%s', expecting key=value", i, opVect[i].c_str() );
+     }
+  }
 }
 
 int FfmpegCamera::ReopenFfmpeg() {
