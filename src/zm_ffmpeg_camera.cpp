@@ -250,8 +250,7 @@ int FfmpegCamera::OpenFfmpeg() {
   mFormatContext->interrupt_callback.callback = FfmpegInterruptCallback;
   mFormatContext->interrupt_callback.opaque = this;
 
-  if ( avformat_open_input( &mFormatContext, mPath.c_str(), NULL, &opts ) !=0 )
-#endif
+  if (avformat_open_input(&mFormatContext, mPath.c_str(), NULL, &opts) != 0)
   {
     mIsOpening = false;
     Error( "Unable to open input %s due to: %s", mPath.c_str(), strerror(errno) );
@@ -394,7 +393,7 @@ int FfmpegCamera::OpenFfmpeg() {
   return 0;
 }
 
-int FfmpegCamera::SetFfmpegOptions() {
+AVDictionary FfmpegCamera::SetFfmpegOptions() {
     // Handle options
   AVDictionary *opts = 0;
   boost::char_separator<char> sep(", ");
