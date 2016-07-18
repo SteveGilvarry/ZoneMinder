@@ -27,6 +27,7 @@
 #include "zm_ffmpeg.h"
 #include "zm_videostore.h"
 #include <boost/tokenizer.hpp>
+#include <boost/foreach.hpp>
 
 //
 // Class representing 'ffmpeg' cameras, i.e. those which are

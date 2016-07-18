@@ -398,8 +398,11 @@ AVDictionary FfmpegCamera::SetFfmpegOptions() {
   AVDictionary *opts = 0;
   boost::char_separator<char> sep(", ");
   boost::tokenizer<boost::char_separator<char> > tokens(Options(), sep);
-    for (const auto& t : tokens) {
-  
+  Debug(2, "Number of Options: %d",
+        std::distance(tokens.begin(), tokens.end()));
+
+  BOOST_FOREACH(std::string t, tokens) {
+    
     }
   StringVector opVect = split(Options(), ",");
   // Set transport method as specified by method field, rtpUni is default
