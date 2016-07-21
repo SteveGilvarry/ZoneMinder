@@ -393,7 +393,7 @@ int FfmpegCamera::OpenFfmpeg() {
   return 0;
 }
 
-AVDictionary FfmpegCamera::SetFfmpegOptions() {
+int FfmpegCamera::SetFfmpegOptions() {
     // Handle options
   AVDictionary *opts = 0;
   boost::char_separator<char> sep(", ");
@@ -402,6 +402,8 @@ AVDictionary FfmpegCamera::SetFfmpegOptions() {
         std::distance(tokens.begin(), tokens.end()));
 
   BOOST_FOREACH(std::string t, tokens) {
+    boost::char_separator<char> sep("=");
+    boost::tokenizer<boost::char_separator<char> > token(t, sep);
     
     }
   StringVector opVect = split(Options(), ",");
@@ -432,8 +434,9 @@ AVDictionary FfmpegCamera::SetFfmpegOptions() {
      else
      {
        Warning( "Unable to parse ffmpeg option %d '%s', expecting key=value", i, opVect[i].c_str() );
-     }
+    }
   }
+  return 0;
 }
 
 int FfmpegCamera::ReopenFfmpeg() {
