@@ -17,7 +17,7 @@ travis_deps_linux:
 travis_ffmpeg_linux:
 	git clone -b n3.0 --depth=1 git://source.ffmpeg.org/ffmpeg.git
 	cd ffmpeg
-	./configure --enable-shared --enable-swscale --enable-gpl  --enable-libx264 --enable-libvpx --enable-libvorbis --enable-libtheora 
+	configure --enable-shared --enable-swscale --enable-gpl  --enable-libx264 --enable-libvpx --enable-libvorbis --enable-libtheora 
 	make -j `grep processor /proc/cpuinfo|wc -l` 
 	sudo make install
 	sudo make install-libs
