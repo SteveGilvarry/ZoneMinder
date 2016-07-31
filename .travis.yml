@@ -5,6 +5,8 @@ services:
 language: cpp
 os:
   - linux
+  
+cache: ccache
 
 compiler:
   - clang
