@@ -23,8 +23,7 @@ travis_ffmpeg_linux:
 	sudo make install-libs
 	cd $TRAVIS_BUILD_DIR
 
-travis_test_linux: travis_deps_linux
-	travis_ffmpeg_linux
+travis_test_linux: travis_deps_linux travis_ffmpeg_linux
 	mysql -uroot -e "CREATE DATABASE IF NOT EXISTS zm"
 	mysql -uroot -e "GRANT ALL ON zm.* TO 'zmuser'@'localhost' IDENTIFIED BY 'zmpass'"
 	mysql -uroot -e "FLUSH PRIVILEGES"
