@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-*/ 
+ */ 
 
 #include "zm_ffmpeg.h"
 #include "zm_image.h"
@@ -41,40 +41,40 @@ enum _AVPIXELFORMAT GetFFMPEGPixelFormat(unsigned int p_colours, unsigned p_subp
 
   switch(p_colours) {
     case ZM_COLOUR_RGB24:
-    {
-    if(p_subpixelorder == ZM_SUBPIX_ORDER_BGR) {
-      /* BGR subpixel order */
-      pf = AV_PIX_FMT_BGR24;
-    } else {
-      /* Assume RGB subpixel order */
-      pf = AV_PIX_FMT_RGB24;
-    }
-    break;
-    }
+      {
+        if(p_subpixelorder == ZM_SUBPIX_ORDER_BGR) {
+          /* BGR subpixel order */
+          pf = AV_PIX_FMT_BGR24;
+        } else {
+          /* Assume RGB subpixel order */
+          pf = AV_PIX_FMT_RGB24;
+        }
+        break;
+      }
     case ZM_COLOUR_RGB32:
-    {
-    if(p_subpixelorder == ZM_SUBPIX_ORDER_ARGB) {
-      /* ARGB subpixel order */
-      pf = AV_PIX_FMT_ARGB;
-    } else if(p_subpixelorder == ZM_SUBPIX_ORDER_ABGR) {
-      /* ABGR subpixel order */
-      pf = AV_PIX_FMT_ABGR;
-    } else if(p_subpixelorder == ZM_SUBPIX_ORDER_BGRA) {
-      /* BGRA subpixel order */
-      pf = AV_PIX_FMT_BGRA;
-    } else {
-      /* Assume RGBA subpixel order */
-      pf = AV_PIX_FMT_RGBA;
-    }
-    break;
-    }
+      {
+        if(p_subpixelorder == ZM_SUBPIX_ORDER_ARGB) {
+          /* ARGB subpixel order */
+          pf = AV_PIX_FMT_ARGB;
+        } else if(p_subpixelorder == ZM_SUBPIX_ORDER_ABGR) {
+          /* ABGR subpixel order */
+          pf = AV_PIX_FMT_ABGR;
+        } else if(p_subpixelorder == ZM_SUBPIX_ORDER_BGRA) {
+          /* BGRA subpixel order */
+          pf = AV_PIX_FMT_BGRA;
+        } else {
+          /* Assume RGBA subpixel order */
+          pf = AV_PIX_FMT_RGBA;
+        }
+        break;
+      }
     case ZM_COLOUR_GRAY8:
-    pf = AV_PIX_FMT_GRAY8;
-    break;
+      pf = AV_PIX_FMT_GRAY8;
+      break;
     default:
-    Panic("Unexpected colours: %d",p_colours);
-    pf = AV_PIX_FMT_GRAY8; /* Just to shush gcc variable may be unused warning */
-    break;
+      Panic("Unexpected colours: %d",p_colours);
+      pf = AV_PIX_FMT_GRAY8; /* Just to shush gcc variable may be unused warning */
+      break;
   }
 
   return pf;
@@ -127,7 +127,7 @@ SWScale::~SWScale() {
     sws_freeContext(swscale_ctx);
     swscale_ctx = NULL;
   }
-  
+
   Debug(4,"SWScale object destroyed");
 }
 
@@ -184,13 +184,14 @@ int SWScale::Convert(const uint8_t* in_buffer, const size_t in_buffer_size, uint
 #else
   size_t outsize = avpicture_get_size(out_pf, width, height);
 #endif
+
   if(outsize < out_buffer_size) {
     Error("The output buffer is undersized for the output format. Required: %d Available: %d", outsize, out_buffer_size);
     return -5;
   }
 
   /* Get the context */
-  swscale_ctx = sws_getCachedContext(swscale_ctx, width, height, in_pf, width, height, out_pf, 0, NULL, NULL, NULL);
+  swscale_ctx = sws_getCachedContext( swscale_ctx, width, height, in_pf, width, height, out_pf, 0, NULL, NULL, NULL);
   if(swscale_ctx == NULL) {
     Error("Failed getting swscale context");
     return -6;
@@ -337,8 +338,8 @@ int hacked_up_context2_for_older_ffmpeg(AVFormatContext **avctx, AVOutputFormat 
     }
 
     if (filename) strncpy(s->filename, filename, sizeof(s->filename));
-      *avctx = s;
-      return 0;
+    *avctx = s;
+    return 0;
   }
 }
 
@@ -371,19 +372,19 @@ void zm_dump_stream_format(AVFormatContext *ic, int i, int index, int is_output)
   if (lang)
     Debug(3, "(%s)", lang->value);
   av_log(NULL, AV_LOG_DEBUG, ", %d, %d/%d", st->codec_info_nb_frames,
-        st->time_base.num, st->time_base.den);
+      st->time_base.num, st->time_base.den);
   Debug(3, ": %s", buf);
 
   if (st->sample_aspect_ratio.num && // default
-    av_cmp_q(st->sample_aspect_ratio, st->codec->sample_aspect_ratio)) {
+      av_cmp_q(st->sample_aspect_ratio, st->codec->sample_aspect_ratio)) {
     AVRational display_aspect_ratio;
     av_reduce(&display_aspect_ratio.num, &display_aspect_ratio.den,
-              st->codec->width  * (int64_t)st->sample_aspect_ratio.num,
-              st->codec->height * (int64_t)st->sample_aspect_ratio.den,
-              1024 * 1024);
+        st->codec->width  * (int64_t)st->sample_aspect_ratio.num,
+        st->codec->height * (int64_t)st->sample_aspect_ratio.den,
+        1024 * 1024);
     Debug(3, ", SAR %d:%d DAR %d:%d",
-          st->sample_aspect_ratio.num, st->sample_aspect_ratio.den,
-          display_aspect_ratio.num, display_aspect_ratio.den);
+        st->sample_aspect_ratio.num, st->sample_aspect_ratio.den,
+        display_aspect_ratio.num, display_aspect_ratio.den);
   }
 
   if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
@@ -425,7 +426,7 @@ void zm_dump_stream_format(AVFormatContext *ic, int i, int index, int is_output)
     Debug(3, " (visual impaired)");
   if (st->disposition & AV_DISPOSITION_CLEAN_EFFECTS)
     Debug(3, " (clean effects)");
-    Debug(3, "\n");
+  Debug(3, "\n");
 
   //dump_metadata(NULL, st->metadata, "    ");
 

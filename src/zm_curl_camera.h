@@ -39,8 +39,7 @@
 // Class representing 'curl' cameras, i.e. those which are
 // accessed using the curl library
 //
-class cURLCamera : public Camera
-{
+class cURLCamera : public Camera {
 protected:
   typedef enum {MODE_UNSET, MODE_SINGLE, MODE_STREAM} mode_t;
 

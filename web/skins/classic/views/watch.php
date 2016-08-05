@@ -33,41 +33,18 @@ if ( ! visibleMonitor( $mid ) ) {
     return;
 }
 
-$sql = 'SELECT C.*, M.* FROM Monitors AS M LEFT JOIN Controls AS C ON (M.ControlId = C.Id ) WHERE M.Id = ?';
 $monitor = new Monitor( $mid );
-#dbFetchOne( $sql, NULL, array( $_REQUEST['mid'] ) );
-
-if ( isset($_REQUEST['showControls']) )
-    $showControls = validInt($_REQUEST['showControls']);
-else
-    $showControls = (canView( 'Control' ) && ($monitor->DefaultView() == 'Control'));
 
 $showPtzControls = ( ZM_OPT_CONTROL && $monitor->Controllable() && canView( 'Control' ) );
 
 if ( isset( $_REQUEST['scale'] ) )
     $scale = validInt($_REQUEST['scale']);
 else
-    $scale = reScale( SCALE_BASE, $monitor->DefaultScale, ZM_WEB_DEFAULT_SCALE );
+    $scale = reScale( SCALE_BASE, $monitor->DefaultScale(), ZM_WEB_DEFAULT_SCALE );
 
 $connkey = generateConnKey();
 
-if ( ZM_WEB_STREAM_METHOD == 'mpeg' && ZM_MPEG_LIVE_FORMAT )
-{
-    $streamMode = "mpeg";
-    $streamSrc = $monitor->getStreamSrc( array( "mode=".$streamMode, "scale=".$scale, "bitrate=".ZM_WEB_VIDEO_BITRATE, "maxfps=".ZM_WEB_VIDEO_MAXFPS, "format=".ZM_MPEG_LIVE_FORMAT ) );
-}
-elseif ( canStream() )
-{
-    $streamMode = "jpeg";
-    $streamSrc = $monitor->getStreamSrc( array( "mode=".$streamMode, "scale=".$scale, "maxfps=".ZM_WEB_VIDEO_MAXFPS, "buffer=".$monitor->StreamReplayBuffer() ) );
-}
-else
-{
-    $streamMode = "single";
-    $streamSrc = $monitor->getStreamSrc( array( "mode=".$streamMode, "scale=".$scale ) );
-    Info( "The system has fallen back to single jpeg mode for streaming. Consider enabling Cambozola or upgrading the client browser.");
-}
-
+$streamMode = getStreamMode();
 $showDvrControls = ( $streamMode == 'jpeg' && $monitor->StreamReplayBuffer() != 0 );
 
 noCacheHeaders();
@@ -82,23 +59,6 @@ xhtmlHeaders( __FILE__, $monitor->Name()." - ".translate('Feed') );
         <div id="closeControl"><a href="#" onclick="closeWindow(); return( false );"><?php echo translate('Close') ?></a></div>
         <div id="menuControls">
 <?php
-if ( $showPtzControls )
-{
-    if ( canView( 'Control' ) )
-    {
-?>
-          <div id="controlControl"<?php echo $showControls?' class="hidden"':'' ?>><a id="controlLink" href="#" onclick="showPtzControls(); return( false );"><?php echo translate('Control') ?></a></div>
-<?php
-    }
-    if ( canView( 'Events' ) )
-    {
-?>
-          <div id="eventsControl"<?php echo $showControls?'':' class="hidden"' ?>><a id="eventsLink" href="#" onclick="showEvents(); return( false );"><?php echo translate('Events') ?></a></div>
-<?php
-    }
-}
-?>
-<?php
 if ( canView( 'Control' ) && $monitor->Type() == "Local" )
 {
 ?>
@@ -110,23 +70,7 @@ if ( canView( 'Control' ) && $monitor->Type() == "Local" )
         </div>
       </div>
       <div id="imageFeed">
-<?php
-if ( $streamMode == "mpeg" )
-{
-    outputVideoStream( "liveStream", $streamSrc, reScale( $monitor->Width(), $scale ), reScale( $monitor->Height(), $scale ), ZM_MPEG_LIVE_FORMAT, $monitor->Name() );
-}
-elseif ( $streamMode == "jpeg" )
-{
-    if ( canStreamNative() )
-        outputImageStream( "liveStream", $streamSrc, reScale( $monitor->Width(), $scale ), reScale( $monitor->Height(), $scale ), $monitor->Name() );
-    elseif ( canStreamApplet() )
-        outputHelperStream( "liveStream", $streamSrc, reScale( $monitor->Width(), $scale ), reScale( $monitor->Height(), $scale ), $monitor->Name() );
-}
-else
-{
-    outputImageStill( "liveStream", $streamSrc, reScale( $monitor->Width(), $scale ), reScale( $monitor->Height(), $scale ), $monitor->Name() );
-}
-?>
+<?php echo getStreamHTML( $monitor, $scale ); ?>
       </div>
       <div id="monitorStatus">
 <?php
@@ -139,7 +83,10 @@ if ( canEdit( 'Monitors' ) )
 if ( canEdit( 'Monitors' ) )
 {
 ?>
-        <div id="forceCancelAlarm"><a id="forceAlarmLink" href="#" onclick="cmdForceAlarm()" class="hidden"><?php echo translate('ForceAlarm') ?></a><a id="cancelAlarmLink" href="#" onclick="cmdCancelForcedAlarm()" class="hidden"><?php echo translate('CancelForcedAlarm') ?></a></div>
+        <div id="forceCancelAlarm">
+            <a id="forceAlarmLink" href="#" onclick="cmdForceAlarm();"><?php echo translate('ForceAlarm') ?></a>
+            <a id="cancelAlarmLink" href="#" onclick="cmdCancelForcedAlarm();" class="hidden"><?php echo translate('CancelForcedAlarm') ?></a>
+        </div>
 <?php
 }
 ?>
@@ -168,7 +115,7 @@ if ( $showPtzControls )
     foreach ( getSkinIncludes( 'includes/control_functions.php' ) as $includeFile )
         require_once $includeFile;
 ?>
-      <div id="ptzControls" class="ptzControls<?php echo $showControls?'':' hidden' ?>">
+      <div id="ptzControls" class="ptzControls">
 <?php echo ptzControls( $monitor ) ?>
       </div>
 <?php
@@ -176,7 +123,7 @@ if ( $showPtzControls )
 if ( canView( 'Events' ) )
 {
 ?>
-      <div id="events"<?php echo $showControls?' class="hidden"':'' ?>>
+      <div id="events">
         <table id="eventList" cellspacing="0">
           <thead>
             <tr>

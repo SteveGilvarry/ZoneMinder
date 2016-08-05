@@ -52,16 +52,16 @@ protected:
   RtspThread *rtspThread;
 
   int frameCount;
-  
+
 #if HAVE_LIBAVFORMAT
-  AVFormatContext   *mFormatContext;
-  int         mVideoStreamId;
-  int         mAudioStreamId;
-  AVCodecContext    *mCodecContext;
-  AVCodec       *mCodec;
-  AVFrame       *mRawFrame; 
-  AVFrame       *mFrame;
-  _AVPIXELFORMAT     imagePixFormat;
+  AVFormatContext     *mFormatContext;
+  int                 mVideoStreamId;
+  int                 mAudioStreamId;
+  AVCodecContext      *mCodecContext;
+  AVCodec             *mCodec;
+  AVFrame             *mRawFrame; 
+  AVFrame             *mFrame;
+  _AVPIXELFORMAT         imagePixFormat;
 #endif // HAVE_LIBAVFORMAT
   bool                wasRecording;
   VideoStore          *videoStore;
@@ -85,7 +85,7 @@ public:
   int PreCapture();
   int Capture( Image &image );
   int PostCapture();
-	int CaptureAndRecord( Image &image, bool recording, char* event_directory );
+  int CaptureAndRecord( Image &image, bool recording, char* event_directory );
 };
 
 #endif // ZM_REMOTE_CAMERA_RTSP_H

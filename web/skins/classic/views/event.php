@@ -70,6 +70,7 @@ else {
 $Zoom = 1;
 $Rotation = 0;
 if ( $event['VideoWriter'] == "2" ) {
+    # Passthrough
     $Rotation = $event['Orientation'];
     if ( in_array($event['Orientation'],array("90","270"))) 
         $Zoom = $event['Height']/$event['Width'];

@@ -29,17 +29,16 @@
 #include "zm_videostore.h"
 
 extern "C"{
-#include "libavutil/time.h"
+  #include "libavutil/time.h"
 }
 
 VideoStore::VideoStore(const char *filename_in, const char *format_in,
     AVStream *input_st,
     AVStream *inpaud_st,
-    int64_t nStartTime
+    int64_t nStartTime,
+    Monitor::Orientation orientation
     ) {
 
-  AVDictionary *pmetadata = NULL;
-  int dsr;
 
   //store inputs in variables local to class
   filename = filename_in;
@@ -48,10 +47,10 @@ VideoStore::VideoStore(const char *filename_in, const char *format_in,
   keyframeMessage = false;
   keyframeSkipNumber = 0;
 
-  Info("Opening video storage stream %s format: %d\n", filename, format);
+  Info("Opening video storage stream %s format: %s\n", filename, format);
 
-  //Init everything we need
   int ret;
+  //Init everything we need
   av_register_all();
 
   ret = avformat_alloc_output_context2(&oc, NULL, NULL, filename);
@@ -73,22 +72,42 @@ VideoStore::VideoStore(const char *filename_in, const char *format_in,
     }
   }
 
-  dsr = av_dict_set(&pmetadata, "title", "Zoneminder Security Recording", 0);
+  AVDictionary *pmetadata = NULL;
+  int dsr = av_dict_set(&pmetadata, "title", "Zoneminder Security Recording", 0);
   if (dsr < 0) Warning("%s:%d: title set failed", __FILE__, __LINE__ );
 
   oc->metadata = pmetadata;
 
   fmt = oc->oformat;
 
-  video_st = avformat_new_stream(oc, input_st->codec->codec);
+  video_st = avformat_new_stream(oc, (AVCodec *)input_st->codec->codec);
   if (!video_st) {
     Fatal("Unable to create video out stream\n");
   }
 
   ret = avcodec_copy_context(video_st->codec, input_st->codec);
   if (ret < 0) { 
-    Fatal("Unable to copy input video context to output video context "
-        "%s\n", av_make_error_string(ret).c_str());
+    Fatal("Unable to copy input video context to output video context %s\n", 
+        av_make_error_string(ret).c_str());
+  }
+
+  if ( video_st->sample_aspect_ratio.den != video_st->codec->sample_aspect_ratio.den ) {
+	  Warning("Fixingample_aspect_ratio.den");
+	  video_st->sample_aspect_ratio.den = video_st->codec->sample_aspect_ratio.den;
+  }
+  if ( video_st->sample_aspect_ratio.num != input_st->codec->sample_aspect_ratio.num ) {
+	  Warning("Fixingample_aspect_ratio.num");
+	  video_st->sample_aspect_ratio.num = input_st->codec->sample_aspect_ratio.num;
+  }
+  if ( video_st->codec->codec_id != input_st->codec->codec_id ) {
+	  Warning("Fixing video_st->codec->codec_id");
+	  video_st->codec->codec_id = input_st->codec->codec_id;
+  }
+  if ( ! video_st->codec->time_base.num ) {
+	  Warning("video_st->codec->time_base.num is not set%d/%d. Fixing by setting it to 1", video_st->codec->time_base.num, video_st->codec->time_base.den);	
+	  Warning("video_st->codec->time_base.num is not set%d/%d. Fixing by setting it to 1", video_st->time_base.num, video_st->time_base.den);	
+	  video_st->codec->time_base.num = video_st->time_base.num;
+	  video_st->codec->time_base.den = video_st->time_base.den;
   }
 
   video_st->codec->codec_tag = 0;
@@ -96,17 +115,38 @@ VideoStore::VideoStore(const char *filename_in, const char *format_in,
     video_st->codec->flags |= CODEC_FLAG_GLOBAL_HEADER;
   }
 
+  if ( orientation ) {
+    if ( orientation == Monitor::ROTATE_0 ) {
+
+    } else if ( orientation == Monitor::ROTATE_90 ) {
+      dsr = av_dict_set( &video_st->metadata, "rotate", "90", 0);
+      if (dsr < 0) Warning("%s:%d: title set failed", __FILE__, __LINE__ );
+    } else if ( orientation == Monitor::ROTATE_180 ) {
+      dsr = av_dict_set( &video_st->metadata, "rotate", "180", 0);
+      if (dsr < 0) Warning("%s:%d: title set failed", __FILE__, __LINE__ );
+    } else if ( orientation == Monitor::ROTATE_270 ) {
+      dsr = av_dict_set( &video_st->metadata, "rotate", "270", 0);
+      if (dsr < 0) Warning("%s:%d: title set failed", __FILE__, __LINE__ );
+    } else {
+      Warning( "Unsupported Orientation(%d)", orientation );
+    }
+  }
+
   if (inpaud_st) {
-    audio_st = avformat_new_stream(oc, inpaud_st->codec->codec);
+    audio_st = avformat_new_stream(oc, (AVCodec *)inpaud_st->codec->codec);
     if (!audio_st) {
       Error("Unable to create audio out stream\n");
       audio_st = NULL;
     } else {
-      ret=avcodec_copy_context(audio_st->codec, inpaud_st->codec);
+      ret = avcodec_copy_context(audio_st->codec, inpaud_st->codec);
       if (ret < 0) {
         Fatal("Unable to copy audio context %s\n", av_make_error_string(ret).c_str());
       }   
       audio_st->codec->codec_tag = 0;
+      if ( audio_st->codec->channels > 1 ) {
+        Warning("Audio isn't mono, changing it.");
+        audio_st->codec->channels = 1;
+      }
       if (oc->oformat->flags & AVFMT_GLOBALHEADER) {
         audio_st->codec->flags |= CODEC_FLAG_GLOBAL_HEADER;
       }
@@ -202,10 +242,10 @@ void VideoStore::dumpPacket( AVPacket *pkt ){
 
 int VideoStore::writeVideoFramePacket(AVPacket *ipkt, AVStream *input_st){//, AVPacket *lastKeyframePkt){
 
-  Debug(3, "before ost_tbcket %d", startTime );
+  Debug(3, "before ost_tbcket starttime %d, timebase%d", startTime, video_st->time_base );
   zm_dump_stream_format( oc, ipkt->stream_index, 0, 1 );
-  Debug(3, "before ost_tbcket %d", startTime );
   int64_t ost_tb_start_time = av_rescale_q(startTime, AV_TIME_BASE_Q, video_st->time_base);
+  Debug(3, "before ost_tbcket starttime %d, ost_tbcket %d", startTime, ost_tb_start_time );
 
   AVPacket opkt, safepkt;
   AVPicture pict;
@@ -215,6 +255,7 @@ int VideoStore::writeVideoFramePacket(AVPacket *ipkt, AVStream *input_st){//, AV
   //Scale the PTS of the outgoing packet to be the correct time base
   if (ipkt->pts != AV_NOPTS_VALUE) {
     opkt.pts = av_rescale_q(ipkt->pts-startPts, input_st->time_base, video_st->time_base) - ost_tb_start_time;
+	Debug(3, "opkt.pts = %d from ipkt->pts(%d) - startPts(%d), input->time_base(%d) video_st->time-base(%d)", opkt.pts, ipkt->pts, startPts, input_st->time_base, video_st->time_base );
   } else {
     opkt.pts = AV_NOPTS_VALUE;
   }
@@ -222,8 +263,10 @@ int VideoStore::writeVideoFramePacket(AVPacket *ipkt, AVStream *input_st){//, AV
   //Scale the DTS of the outgoing packet to be the correct time base
   if(ipkt->dts == AV_NOPTS_VALUE) {
     opkt.dts = av_rescale_q(input_st->cur_dts-startDts, AV_TIME_BASE_Q, video_st->time_base);
+	Debug(3, "opkt.dts = %d from input_st->cur_dts(%d) - startDts(%d), video_st->time-base(%d)", opkt.dts, input_st->cur_dts, startDts, video_st->time_base );
   } else {
     opkt.dts = av_rescale_q(ipkt->dts-startDts, input_st->time_base, video_st->time_base);
+	Debug(3, "opkt.dts = %d from ipkt->dts(%d) - startDts(%d), video_st->time-base(%d)", opkt.dts, ipkt->dts, startDts, video_st->time_base );
   }
 
   opkt.dts -= ost_tb_start_time;
@@ -251,7 +294,7 @@ int VideoStore::writeVideoFramePacket(AVPacket *ipkt, AVStream *input_st){//, AV
     Warning("%s:%d: Mangled AVPacket: discarding frame", __FILE__, __LINE__ ); 
     dumpPacket(&opkt);
 
-  } else if ((prevDts > 0) && (prevDts >= opkt.dts)) {
+  } else if ((prevDts > 0) && (prevDts > opkt.dts)) {
     Warning("%s:%d: DTS out of order: %lld \u226E %lld; discarding frame", __FILE__, __LINE__, prevDts, opkt.dts); 
     prevDts = opkt.dts; 
     dumpPacket(&opkt);
@@ -271,6 +314,7 @@ int VideoStore::writeVideoFramePacket(AVPacket *ipkt, AVStream *input_st){//, AV
   av_free_packet(&opkt); 
 
   return 0;
+
 }
 
 int VideoStore::writeAudioFramePacket(AVPacket *ipkt, AVStream *input_st){
@@ -290,7 +334,6 @@ int VideoStore::writeAudioFramePacket(AVPacket *ipkt, AVStream *input_st){
 
   av_init_packet(&opkt);
   Debug(3, "after init packet" );
-
 
   //Scale the PTS of the outgoing packet to be the correct time base
   if (ipkt->pts != AV_NOPTS_VALUE) {

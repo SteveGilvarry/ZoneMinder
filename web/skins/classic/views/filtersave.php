@@ -56,14 +56,14 @@ xhtmlHeaders(__FILE__, translate('SaveFilter') );
         <input type="hidden" name="sort_field" value="<?php echo requestVar( 'sort_field' ) ?>"/>
         <input type="hidden" name="sort_asc" value="<?php echo requestVar( 'sort_asc' ) ?>"/>
         <input type="hidden" name="limit" value="<?php echo requestVar( 'limit' ) ?>"/>
-        <input type="hidden" name="autoArchive" value="<?php echo requestVar( 'autoArchive' ) ?>"/>
-        <input type="hidden" name="autoVideo" value="<?php echo requestVar( 'autoVideo' ) ?>"/>
-        <input type="hidden" name="autoUpload" value="<?php echo requestVar( 'autoUpload' ) ?>"/>
-        <input type="hidden" name="autoEmail" value="<?php echo requestVar( 'autoEmail' ) ?>"/>
-        <input type="hidden" name="autoMessage" value="<?php echo requestVar( 'autoMessage' ) ?>"/>
-        <input type="hidden" name="autoExecute" value="<?php echo requestVar( 'autoExecute' ) ?>"/>
-        <input type="hidden" name="autoExecuteCmd" value="<?php echo requestVar( 'autoExecuteCmd' ) ?>"/>
-        <input type="hidden" name="autoDelete" value="<?php echo requestVar( 'autoDelete' ) ?>"/>
+        <input type="hidden" name="AutoArchive" value="<?php echo requestVar( 'AutoArchive' ) ?>"/>
+        <input type="hidden" name="AutoVideo" value="<?php echo requestVar( 'AutoVideo' ) ?>"/>
+        <input type="hidden" name="AutoUpload" value="<?php echo requestVar( 'AutoUpload' ) ?>"/>
+        <input type="hidden" name="AutoEmail" value="<?php echo requestVar( 'AutoEmail' ) ?>"/>
+        <input type="hidden" name="AutoMessage" value="<?php echo requestVar( 'AutoMessage' ) ?>"/>
+        <input type="hidden" name="AutoExecute" value="<?php echo requestVar( 'AutoExecute' ) ?>"/>
+        <input type="hidden" name="AutoExecuteCmd" value="<?php echo requestVar( 'AutoExecuteCmd' ) ?>"/>
+        <input type="hidden" name="AutoDelete" value="<?php echo requestVar( 'AutoDelete' ) ?>"/>
 <?php if ( count($filterNames) ) { ?>
         <p>
           <label for="<?php echo $selectName ?>"><?php echo translate('SaveAs') ?></label><?php echo buildSelect( $selectName, $filterNames ); ?><label for="<?php echo $newSelectName ?>"><?php echo translate('OrEnterNewName') ?></label><input type="text" size="32" id="<?php echo $newSelectName ?>" name="<?php echo $newSelectName ?>" value="<?php echo requestVar('filterName') ?>"/>
@@ -75,6 +75,9 @@ xhtmlHeaders(__FILE__, translate('SaveFilter') );
 <?php } ?>
         <p>
           <label for="background"><?php echo translate('BackgroundFilter') ?></label><input type="checkbox" id="background" name="background" value="1"<?php if ( !empty($filterData['Background']) ) { ?> checked="checked"<?php } ?>/>
+        </p>
+        <p>
+          <label for="concurrent"><?php echo translate('ConcurrentFilter') ?></label><input type="checkbox" id="concurrent" name="concurrent" value="1"<?php if ( !empty($filterData['Concurrent']) ) { ?> checked="checked"<?php } ?>/>
         </p>
         <div id="contentButtons">
           <input type="submit" value="<?php echo translate('Save') ?>"<?php if ( !canEdit( 'Events' ) ) { ?> disabled="disabled"<?php } ?>/><input type="button" value="<?php echo translate('Cancel') ?>" onclick="closeWindow();"/>
