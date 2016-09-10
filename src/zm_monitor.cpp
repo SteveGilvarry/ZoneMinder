@@ -462,8 +462,8 @@ Monitor::Monitor(
   }
 
   // Will this not happen every time a monitor is instantiated?  Seems like all the calls to the Monitor constructor pass a zero for n_zones, then load zones after..
-	// In my storage areas branch, I took this out.. and didn't notice any problems.
-  if ( !n_zones ) {
+  // In my storage areas branch, I took this out.. and didn't notice any problems.
+  if ( false && !n_zones ) {
     Debug( 1, "Monitor %s has no zones, adding one.", name );
     n_zones = 1;
     zones = new Zone *[1];
@@ -2254,10 +2254,11 @@ Debug( 1, "Got %d for v4l_captures_per_frame", v4l_captures_per_frame );
       track_motion,
       signal_check_colour,
       embed_exif,
-                              purpose,
+      purpose,
       0,
       0
     );
+    camera->setMonitor( monitors[i] );
     Zone **zones = 0;
     int n_zones = Zone::Load( monitors[i], zones );
     monitors[i]->AddZones( n_zones, zones );
@@ -2446,6 +2447,7 @@ int Monitor::LoadRemoteMonitors( const char *protocol, const char *host, const c
       0
 
     );
+    camera->setMonitor( monitors[i] );
     Zone **zones = 0;
     int n_zones = Zone::Load( monitors[i], zones );
     monitors[i]->AddZones( n_zones, zones );
@@ -2596,6 +2598,7 @@ int Monitor::LoadFileMonitors( const char *file, Monitor **&monitors, Purpose pu
       0,
       0
     );
+    camera->setMonitor( monitors[i] );
     Zone **zones = 0;
     int n_zones = Zone::Load( monitors[i], zones );
     monitors[i]->AddZones( n_zones, zones );
@@ -2751,6 +2754,8 @@ int Monitor::LoadFfmpegMonitors( const char *file, Monitor **&monitors, Purpose 
       0,
       0
     );
+
+    camera->setMonitor( monitors[i] );
     Zone **zones = 0;
     int n_zones = Zone::Load( monitors[i], zones );
     monitors[i]->AddZones( n_zones, zones );
@@ -3079,6 +3084,8 @@ Debug( 1, "Got %d for v4l_captures_per_frame", v4l_captures_per_frame );
     0
 
   );
+
+  camera->setMonitor( monitor );
 
   int n_zones = 0;
   if ( load_zones )
