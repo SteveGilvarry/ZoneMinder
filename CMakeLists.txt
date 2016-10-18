@@ -561,6 +561,23 @@ if(NOT ZM_NO_FFMPEG)
 		set(optlibsnotfound "${optlibsnotfound} SWResample")
 	endif(SWRESAMPLE_LIBRARIES)
 
+	# avfilter (using find_library and find_path)
+	find_library(AVFILTER_LIBRARIES avcodec)
+	if(AVFILTER_LIBRARIES)
+		set(HAVE_LIBAVFILTER 1)
+		list(APPEND ZM_BIN_LIBS "${AVFILTER_LIBRARIES}")
+		find_path(AVFILTER_INCLUDE_DIR "libavfilter/avfilter.h" /usr/include/ffmpeg)
+		if(AVFILTER_INCLUDE_DIR)
+			include_directories("${AVFILTER_INCLUDE_DIR}")
+			set(CMAKE_REQUIRED_INCLUDES "${AVFILTER_INCLUDE_DIR}")
+		endif(AVFILTER_INCLUDE_DIR)
+		mark_as_advanced(FORCE AVFILTER_LIBRARIES AVFILTER_INCLUDE_DIR)
+		check_include_file("libavfilter/avfilter.h" HAVE_LIBAVFILTER_AVFILTER_H)
+		set(optlibsfound "${optlibsfound} AVFilter")
+	else(AVFILTER_LIBRARIES)
+		set(optlibsnotfound "${optlibsnotfound} AVFilter")
+	endif(AVFILTER_LIBRARIES)
+
 	# Find the path to the ffmpeg executable
 	find_program(FFMPEG_EXECUTABLE 
 		NAMES ffmpeg avconv

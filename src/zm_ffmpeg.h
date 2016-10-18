@@ -34,6 +34,7 @@ extern "C" {
 #include <libavutil/base64.h>
 #include <libavutil/mathematics.h>
 #include <libavutil/avstring.h>
+#include <libavutil/eval.h>
 
 /* LIBAVUTIL_VERSION_CHECK checks for the right version of libav and FFmpeg
  * The original source is vlc (in modules/codec/avcodec/avcommon_compat.h)
@@ -137,6 +138,24 @@ extern "C" {
 #endif
 #endif /* HAVE_LIBAVCODEC_AVCODEC_H */
 
+// AVFILTER
+#if HAVE_LIBAVFILTER_AVFILTER_H
+#include <libavfilter/avfilter.h>
+
+/*
+ * LIBAVFILTER_VERSION_CHECK checks for the right version of libav and FFmpeg
+ * The original source is vlc (in modules/codec/avcodec/avcommon_compat.h)
+ * a is the major version
+ * b and c the minor and micro versions of libav
+ * d and e the minor and micro versions of FFmpeg */
+#define LIBAVFILTER_VERSION_CHECK(a, b, c, d, e) \
+    ( (LIBAVFILTER_VERSION_MICRO <  100 && LIBAVFILTER_VERSION_INT >= AV_VERSION_INT(a, b, c) ) || \
+      (LIBAVFILTER_VERSION_MICRO >= 100 && LIBAVFILTER_VERSION_INT >= AV_VERSION_INT(a, d, e) ) )
+
+#elif HAVE_FFMPEG_AVFILTER_H
+#include <libavfilter/avfilter.h>
+#endif /* HAVE_LIBAVFILTER_AVFILTER_H */
+  
 // AVFORMAT
 #if HAVE_LIBAVFORMAT_AVFORMAT_H
 #include <libavformat/avformat.h>

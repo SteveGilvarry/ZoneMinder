@@ -102,10 +102,16 @@ void FfmpegCamera::Initialise()
   if ( logDebugging() )
     av_log_set_level( AV_LOG_DEBUG ); 
   else
-    av_log_set_level( AV_LOG_QUIET ); 
+    av_log_set_level( AV_LOG_QUIET );
 
-  av_register_all();
-  avformat_network_init();
+  avcodec_register_all( );
+#if HAVE_LIBAVDEVICE_AVDEVICE_H
+  avdevice_register_all( );
+#endif
+  avfilter_register_all( );
+  av_register_all( );
+  avformat_network_init( );
+
 }
 
 void FfmpegCamera::Terminate()
