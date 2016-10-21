@@ -55,6 +55,7 @@ VideoStore::VideoStore(const char *filename_in, const char *format_in,
   int audio_sync_method = 0;
   int debug_ts = 0;
   int do_benchmark_all = 0;
+  int current_time;
 
   FilterGraph **filtergraphs;
   int nb_filtergraphs;
@@ -1792,7 +1793,6 @@ void VideoStore::check_decode_result(InputStream *ist, int *got_output, int ret)
                         if (exit_on_error && *got_output && ist) {
                         if (av_frame_get_decode_error_flags( ist->decoded_frame ) || (ist->decoded_frame->flags & AV_FRAME_FLAG_CORRUPT)) {
                         av_log( NULL, AV_LOG_FATAL, "%s: corrupt decoded frame in stream %d\n", input_files[ist->file_index]->ctx->filename, ist->st->index );
-                        exit_program( 1 );
         }
       }
 }

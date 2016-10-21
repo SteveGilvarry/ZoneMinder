@@ -112,7 +112,7 @@ typedef struct OutputFilter {
     enum AVMediaType     type;
 } OutputFilter;
 
-struct FilterGraph {
+typedef struct FilterGraph {
     int            index;
     const char    *graph_desc;
 
