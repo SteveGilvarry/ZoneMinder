@@ -28,8 +28,9 @@
 #include "zm.h"
 #include "zm_videostore.h"
 
-extern "C"{
-  #include "libavutil/time.h"
+extern "C" {
+#include "libavutil/time.h"
+#include "libavutil/timestamp.h"
 }
 
 VideoStore::VideoStore(const char *filename_in, const char *format_in,
@@ -1005,7 +1006,7 @@ void VideoStore::do_streamcopy(InputStream *ist, OutputStream *ost, const AVPack
 void VideoStore::close_output_stream(OutputStream *ost) {
                         OutputFile *of = output_files[ost->file_index];
 
-                        ost->finished |= ENCODER_FINISHED;
+                        ost->finished == ENCODER_FINISHED;
                         if (of->shortest) {
 
                         int64_t end = av_rescale_q( ost->sync_opts - ost->first_pts, ost->enc_ctx->time_base, AV_TIME_BASE_Q );
@@ -1154,11 +1155,12 @@ void VideoStore::write_packet(AVFormatContext *s, AVPacket *pkt, OutputStream *o
                         pkt->stream_index = ost->index;
 
                         if (debug_ts) {
-                        av_log( NULL, AV_LOG_INFO, "muxer <- type:%s "
-                                "pkt_pts:%s pkt_pts_time:%s pkt_dts:%s pkt_dts_time:%s size:%d\n",
+                        av_log( NULL, AV_LOG_INFO, "muxer <- type:%s pkt_pts:%s pkt_pts_time:%s pkt_dts:%s pkt_dts_time:%s size:%d\n",
                                 av_get_media_type_string( ost->enc_ctx->codec_type ),
-                                av_ts2str( pkt->pts ), av_ts2timestr( pkt->pts, &ost->st->time_base ),
-                                av_ts2str( pkt->dts ), av_ts2timestr( pkt->dts, &ost->st->time_base ),
+                                av_ts2str( pkt->pts ),
+                                av_ts2timestr( pkt->pts, &ost->st->time_base ),
+                                av_ts2str( pkt->dts ),
+                                av_ts2timestr( pkt->dts, &ost->st->time_base ),
                                 pkt->size
                                 );
   }
@@ -1175,7 +1177,7 @@ void VideoStore::close_all_output_streams(OutputStream *ost, OSTFinished this_st
                         int i;
                         for (i = 0; i < nb_output_streams; i++) {
                         OutputStream *ost2 = output_streams[i];
-                        ost2->finished |= ost == ost2 ? this_stream : others;
+                        ost2->finished == ost == ost2 ? this_stream : others;
   }
 }
 
