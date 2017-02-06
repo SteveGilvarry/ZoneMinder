@@ -46,6 +46,7 @@ if ( false )
     ob_end_clean();
 }
 
+require_once( 'includes/csrf-magic.php' );
 require_once( 'includes/config.php' );
 require_once( 'includes/logger.php' );
 require_once( 'includes/Server.php' );
