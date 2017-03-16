@@ -45,7 +45,7 @@ $GLOBALS['csrf']['callback'] = 'csrf_callback';
  * with supported JavaScript libraries in Internet Explorer; see README.txt for
  * a list of supported libraries.
  */
-$GLOBALS['csrf']['rewrite-js'] = false;
+$GLOBALS['csrf']['rewrite-js'] = 'includes/csrf-magic.js';
 
 /**
  * A secret key used when hashing items. Please generate a random string and
