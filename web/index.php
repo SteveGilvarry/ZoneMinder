@@ -46,7 +46,6 @@ if ( false )
     ob_end_clean();
 }
 
-require_once( 'includes/csrf-magic.php' );
 require_once( 'includes/config.php' );
 require_once( 'includes/logger.php' );
 require_once( 'includes/Server.php' );
@@ -126,6 +125,8 @@ session_set_cookie_params(
 ini_set( "session.name", "ZMSESSID" );
 
 session_start();
+# Must be called immediately *after* session_start
+require_once( 'includes/csrf-magic.php' );
 
 if ( !isset($_SESSION['skin']) || isset($_REQUEST['skin']) || !isset($_COOKIE['zmSkin']) || $_COOKIE['zmSkin'] != $skin )
 {
