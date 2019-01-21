@@ -69,11 +69,9 @@ define('ZM_BASE_PROTOCOL', $protocol);
 // Use relative URL's instead
 define('ZM_BASE_URL', '');
 
-// Check time zone is set
-if (!ini_get('date.timezone') || !date_default_timezone_set(ini_get('date.timezone'))) {
-  date_default_timezone_set('UTC');
-  Fatal( "ZoneMinder is not installed properly: php's date.timezone is not set to a valid timezone" );
-}
+// Verify the system, php, and mysql timezones all match
+require_once('includes/functions.php');
+check_timezone();
 
 if ( isset($_GET['skin']) ) {
   $skin = $_GET['skin'];
@@ -155,7 +153,6 @@ if ( ZM_OPT_USE_AUTH ) {
 session_write_close();
 
 require_once('includes/lang.php');
-require_once('includes/functions.php');
 
 # Running is global but only do the daemonCheck if it is actually needed
 $running = null;
@@ -174,6 +171,9 @@ $redirect = null;
 $view = null;
 if ( isset($_REQUEST['view']) )
   $view = detaintPath($_REQUEST['view']);
+
+# Add CSP Headers
+$cspNonce = bin2hex(openssl_random_pseudo_bytes(16));
 
 $request = null;
 if ( isset($_REQUEST['request']) )
@@ -210,7 +210,14 @@ if (
 }
 
 # Need to include actions because it does auth
-require_once('includes/actions.php');
+if ( $action ) {
+  if ( file_exists('includes/actions/'.$view.'.php') ) {
+    Logger::Debug("Including includes/actions/$view.php");
+    require_once('includes/actions/'.$view.'.php');
+  } else {
+    Warning("No includes/actions/$view.php for action $action");
+  }
+}
 
 # If I put this here, it protects all views and popups, but it has to go after actions.php because actions.php does the actual logging in.
 if ( ZM_OPT_USE_AUTH and !isset($user) ) {
@@ -222,6 +229,8 @@ if ( ZM_OPT_USE_AUTH and !isset($user) ) {
   $view = 'privacy';
   $request = null;
 }
+
+CSPHeaders($view, $cspNonce);
 
 if ( $redirect ) {
   header('Location: '.$redirect);
