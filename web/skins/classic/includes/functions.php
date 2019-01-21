@@ -139,10 +139,10 @@ echo output_link_if_exists( array(
 <?php
   } else if ( $view == 'event' ) {
 ?>
-  <link href="skins/<?php echo $skin ?>/js/video-js.css" rel="stylesheet">
-  <link href="skins/<?php echo $skin ?>/js/video-js-skin.css" rel="stylesheet">
-  <script src="skins/<?php echo $skin ?>/js/video.js"></script>
-  <script src="./js/videojs.zoomrotate.js"></script>
+  <link href="skins/<?php echo $skin ?>/js/video-js-7.4.1/video-js.css" rel="stylesheet">
+  <link href="skins/<?php echo $skin ?>/js/video-js-7.4.1/video-js-skin.css" rel="stylesheet">
+  <script src="skins/<?php echo $skin ?>/js/video-js-7.4.1/video.js"></script>
+  <script src="skins/<?php echo $skin ?>/js/video-js-7.4.1/videojs.zoomrotate.js"></script>
 <?php
   }
 ?>
