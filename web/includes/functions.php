@@ -51,11 +51,20 @@ function CSPHeaders($view, $nonce) {
     case 'blank':
     case 'console':
     case 'controlcap':
+    case 'cycle':
+    case 'donate':
+    case 'error':
     case 'function':
     case 'log':
     case 'logout':
+    case 'optionhelp':
     case 'options':
+    case 'plugin':
+    case 'postlogin':
     case 'privacy':
+    case 'server':
+    case 'state':
+    case 'status':
     case 'storage':
     case 'version': {
       // Enforce script-src on pages where inline scripts and event handlers have been fixed.
@@ -441,6 +450,9 @@ function makeLink( $url, $label, $condition=1, $options='' ) {
   return( $string );
 }
 
+/**
+ * $label must be already escaped. It can't be done here since it sometimes contains HTML tags.
+ */
 function makePopupLink( $url, $winName, $winSize, $label, $condition=1, $options='' ) {
   // Avoid double-encoding since some consumers incorrectly pass a pre-escaped URL.
   $string = '<a class="popup-link" href="' . htmlspecialchars($url, ENT_COMPAT | ENT_HTML401, ini_get("default_charset"), false) . '"';
@@ -958,11 +970,11 @@ Logger::Debug("generating Video $command: result($result outptu:(".implode("\n",
   return( $status?"":rtrim($result) );
 }
 
-function executeFilter( $filter ) {
-  $command = ZM_PATH_BIN."/zmfilter.pl --filter ".escapeshellarg($filter);
-  $result = exec( $command, $output, $status );
-  dbQuery( "delete from Filters where Name like '_TempFilter%'" );
-  return( $status );
+function executeFilter( $filter_id ) {
+  $command = ZM_PATH_BIN.'/zmfilter.pl --filter_id '.escapeshellarg($filter_id);
+  $result = exec($command, $output, $status);
+  dbQuery('DELETE FROM Filters WHERE Id=?', array($filter_id));
+  return $status;
 }
 
 # This takes more than one scale amount, so it runs through each and alters dimension.
@@ -1075,23 +1087,30 @@ function parseSort( $saveToSession=false, $querySep='&amp;' ) {
   }
 }
 
+function getFilterQueryConjunctionTypes() {
+  return array(
+               'and' => translate('ConjAnd'),
+               'or'  => translate('ConjOr')
+               );
+}
+
 function parseFilter(&$filter, $saveToSession=false, $querySep='&amp;') {
-  $filter['query'] = ''; 
+  $filter['query'] = '';
   $filter['sql'] = '';
   $filter['fields'] = '';
 
+  $validQueryConjunctionTypes = getFilterQueryConjunctionTypes();
   $StorageArea = NULL;
 
   $terms = isset($filter['Query']) ? $filter['Query']['terms'] : NULL;
-
   if ( isset($terms) && count($terms) ) {
     for ( $i = 0; $i < count($terms); $i++ ) {
-      if ( isset($terms[$i]['cnj']) ) {
+      if ( isset($terms[$i]['cnj']) && array_key_exists($terms[$i]['cnj'], $validQueryConjunctionTypes) ) {
         $filter['query'] .= $querySep.urlencode("filter[Query][terms][$i][cnj]").'='.urlencode($terms[$i]['cnj']);
         $filter['sql'] .= ' '.$terms[$i]['cnj'].' ';
         $filter['fields'] .= "<input type=\"hidden\" name=\"filter[Query][terms][$i][cnj]\" value=\"".htmlspecialchars($terms[$i]['cnj'])."\"/>\n";
       }
-      if ( isset($terms[$i]['obr']) ) {
+      if ( isset($terms[$i]['obr']) && (string)(int)$terms[$i]['obr'] == $terms[$i]['obr'] ) {
         $filter['query'] .= $querySep.urlencode("filter[Query][terms][$i][obr]").'='.urlencode($terms[$i]['obr']);
         $filter['sql'] .= ' '.str_repeat('(', $terms[$i]['obr']).' ';
         $filter['fields'] .= "<input type=\"hidden\" name=\"filter[Query][terms][$i][obr]\" value=\"".htmlspecialchars($terms[$i]['obr'])."\"/>\n";
@@ -1101,7 +1120,7 @@ function parseFilter(&$filter, $saveToSession=false, $querySep='&amp;') {
         $filter['fields'] .= "<input type=\"hidden\" name=\"filter[Query][terms][$i][attr]\" value=\"".htmlspecialchars($terms[$i]['attr'])."\"/>\n";
         switch ( $terms[$i]['attr'] ) {
           case 'MonitorName':
-            $filter['sql'] .= 'M.'.preg_replace('/^Monitor/', '', $terms[$i]['attr']);
+            $filter['sql'] .= 'M.Name';
             break;
           case 'ServerId':
           case 'MonitorServerId':
@@ -1295,7 +1314,7 @@ function parseFilter(&$filter, $saveToSession=false, $querySep='&amp;') {
 		$filter['fields'] .= "<input type=\"hidden\" name=\"filter[Query][terms][$i][val]\" value=\"".htmlspecialchars($terms[$i]['val'])."\"/>\n";
 	}
       } // end foreach term
-      if ( isset($terms[$i]['cbr']) ) {
+      if ( isset($terms[$i]['cbr']) && (string)(int)$terms[$i]['cbr'] == $terms[$i]['cbr'] ) {
         $filter['query'] .= $querySep.urlencode("filter[Query][terms][$i][cbr]").'='.urlencode($terms[$i]['cbr']);
         $filter['sql'] .= ' '.str_repeat( ')', $terms[$i]['cbr'] ).' ';
         $filter['fields'] .= "<input type=\"hidden\" name=\"filter[Query][terms][$i][cbr]\" value=\"".htmlspecialchars($terms[$i]['cbr'])."\"/>\n";
