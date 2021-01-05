@@ -889,10 +889,9 @@ function xhtmlFooter() {
 <?php
   if ( $view == 'event' ) {
 ?>
-  <link href="skins/<?php echo $skin ?>/js/video-js.css" rel="stylesheet">
-  <link href="skins/<?php echo $skin ?>/js/video-js-skin.css" rel="stylesheet">
-  <script src="skins/<?php echo $skin ?>/js/video.js"></script>
-  <script src="./js/videojs.zoomrotate.js"></script>
+  <link href="skins/<?php echo $skin ?>/js/video-js-7.10.2/video-js.css" rel="stylesheet">
+  <link href="skins/<?php echo $skin ?>/js/video-js-7.10.2/video-js-skin.css" rel="stylesheet">
+  <script src="skins/<?php echo $skin ?>/js/video-js-7.10.2/video.js"></script>
 <?php
   }
 ?>
