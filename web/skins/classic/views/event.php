@@ -182,7 +182,7 @@ if ( ($codec == 'MP4' || $codec == 'auto' ) && $Event->DefaultVideo() ) {
                 array_filter(
                   array_keys($rates),
                   function($r){return $r >= 0 ? true : false;}
-                ))) ?>], "plugins": { "zoomrotate": { "zoom": "<?php echo $Zoom ?>"}}}'
+                ))) ?>]}'
           >
           <source src="<?php echo $Event->getStreamSrc(array('mode'=>'mpeg','format'=>'h264'),'&amp;'); ?>" type="video/mp4">
           <track id="monitorCaption" kind="captions" label="English" srclang="en" src='data:plain/text;charset=utf-8,"WEBVTT\n\n 00:00:00.000 --> 00:00:01.000 ZoneMinder"' default/>

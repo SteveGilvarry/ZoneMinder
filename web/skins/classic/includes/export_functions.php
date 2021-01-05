@@ -241,7 +241,7 @@ function exportEventImages($event, $exportDetail, $exportFrames, $myfilelist) {
       <video id="videoobj" class="video-js vjs-default-skin" style="transform: matrix(1, 0, 0, 1, 0, 0);"
         width="<?php echo $event->Width() ?>"
         height="<?php echo $event->Height() ?>"
-        data-setup='{ "controls": true, "autoplay": true, "preload": "auto", "plugins": { "zoomrotate": { "zoom": "<?php echo $Zoom ?>"}}}'>
+        data-setup='{ "controls": true, "autoplay": true, "preload": "auto"}'>
         <source src="<?php echo $event->getStreamSrc(array('mode'=>'mpeg','format'=>'h264')); ?>" type="video/mp4">
         <track id="monitorCaption" kind="captions" label="English" srclang="en" src='data:plain/text;charset=utf-8,"WEBVTT\n\n 00:00:00.000 --> 00:00:01.000 ZoneMinder"' default>
         Your browser does not support the video tag.
