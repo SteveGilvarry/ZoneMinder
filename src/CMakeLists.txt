@@ -60,7 +60,8 @@ set(ZM_BIN_SRC_FILES
  zm_video.cpp
  zm_videostore.cpp
  zm_zone.cpp
- zm_storage.cpp)
+ zm_storage.cpp
+ zm_hls.cpp)
 
 # A fix for cmake recompiling the source files for every target.
 add_library(zm STATIC ${ZM_BIN_SRC_FILES})
