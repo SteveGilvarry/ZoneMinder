@@ -14,29 +14,67 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 // 
 
 #ifndef ZM_DB_H
 #define ZM_DB_H
 
+#include <condition_variable>
+#include <mutex>
 #include <mysql/mysql.h>
+#include <mysql/mysqld_error.h>
+#include <queue>
+#include <string>
+#include <thread>
 
-#ifdef __cplusplus 
-extern "C" {
-#endif 
+class zmDbQueue {
+  private:
+  std::queue<std::string> mQueue;
+  std::thread             mThread;
+  std::mutex              mMutex;
+  std::condition_variable mCondition;
+  bool                    mTerminate;
+  public:
+  zmDbQueue();
+  ~zmDbQueue();
+  void push(std::string &&sql);
+  void process();
+  void stop();
+};
+
+class zmDbRow {
+  private:
+    MYSQL_RES *result_set;
+    MYSQL_ROW row;
+  public:
+    zmDbRow() : result_set(nullptr), row(nullptr) { };
+    MYSQL_RES *fetch(const std::string &query);
+    zmDbRow(MYSQL_RES *, MYSQL_ROW *row);
+    ~zmDbRow();
+
+    MYSQL_ROW mysql_row() const { return row; };
+
+    char *operator[](unsigned int index) const {
+      return row[index];
+    }
+};
+
 extern MYSQL dbconn;
+extern std::mutex db_mutex;
+extern zmDbQueue  dbQueue;
 
-extern int zmDbConnected;
+extern bool zmDbConnected;
 
-void zmDbConnect();
+bool zmDbConnect();
 void zmDbClose();
+int zmDbDo(const std::string &query);
+int zmDbDoInsert(const std::string &query);
+int zmDbDoUpdate(const std::string &query);
 
-MYSQL_RES * zmDbFetch( const char *query );
-MYSQL_ROW zmDbFetchOne( const char *query );
+MYSQL_RES * zmDbFetch(const std::string &query);
+zmDbRow *zmDbFetchOne(const std::string &query);
 
-#ifdef __cplusplus 
-} /* extern "C" */
-#endif 
+std::string zmDbEscapeString(const std::string& to_escape);
 
 #endif // ZM_DB_H

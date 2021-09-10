@@ -15,89 +15,75 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-if ( !canView( 'Events' ) )
-{
-    $view = "error";
-    return;
+if ( !canView('Events') ) {
+  $view = 'error';
+  return;
 }
-$sql = 'SELECT E.*,M.Name AS MonitorName FROM Events AS E INNER JOIN Monitors AS M ON E.MonitorId = M.Id WHERE E.Id = ?';
-$event = dbFetchOne( $sql, NULL, array($_REQUEST['eid']) );
 
-$sql = 'SELECT *, unix_timestamp( TimeStamp ) AS UnixTimeStamp FROM Frames WHERE EventID = ? ORDER BY FrameId';
-$frames = dbFetchAll( $sql, NULL, array( $_REQUEST['eid'] ) );
+require_once('includes/Frame.php');
+require_once('includes/Filter.php');
 
-$focusWindow = true;
+$eid = validInt($_REQUEST['eid']);
+$Event = new ZM\Event($eid);
 
-xhtmlHeaders(__FILE__, translate('Frames')." - ".$event['Id'] );
+xhtmlHeaders(__FILE__, translate('Frames').' - '.$Event->Id());
 ?>
 <body>
-  <div id="page">
-    <div id="header">
-      <div id="headerButtons"><a href="#" onclick="closeWindow();"><?php echo translate('Close') ?></a></div>
-      <h2><?php echo translate('Frames') ?> - <?php echo $event['Id'] ?></h2>
+  <?php echo getNavBarHTML() ?>
+  <div id="page" class="container-fluid p-3">
+    <!-- Toolbar button placement and styling handled by bootstrap-tables -->
+    <div id="toolbar">
+      <button type="button" id="backBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Back') ?>" disabled><i class="fa fa-arrow-left"></i></button>
+      <button type="button" id="refreshBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Refresh') ?>" ><i class="fa fa-refresh"></i></button>
     </div>
-    <div id="content">
-      <form name="contentForm" id="contentForm" method="get" action="<?php echo $_SERVER['PHP_SELF'] ?>">
-        <input type="hidden" name="view" value="none"/>
-        <table id="contentTable" class="major" cellspacing="0">
-          <thead>
-            <tr>
-              <th class="colId"><?php echo translate('FrameId') ?></th>
-              <th class="colType"><?php echo translate('Type') ?></th>
-              <th class="colTimeStamp"><?php echo translate('TimeStamp') ?></th>
-              <th class="colTimeDelta"><?php echo translate('TimeDelta') ?></th>
-              <th class="colScore"><?php echo translate('Score') ?></th>
-            </tr>
-          </thead>
-          <tbody>
-<?php
-if ( count($frames) )
-{
-    foreach ( $frames as $frame )
-    {
-        $class = strtolower($frame['Type']);
-?>
-            <tr class="<?php echo $class ?>">
-              <td class="colId"><?php echo makePopupLink( '?view=frame&amp;eid='.$event['Id'].'&amp;fid='.$frame['FrameId'], 'zmImage', array( 'frame', $event['Width'], $event['Height'] ), $frame['FrameId'] ) ?></td>
-              <td class="colType"><?php echo $frame['Type'] ?></td>
-              <td class="colTimeStamp"><?php echo strftime( STRF_FMT_TIME, $frame['UnixTimeStamp'] ) ?></td>
-              <td class="colTimeDelta"><?php echo number_format( $frame['Delta'], 2 ) ?></td>
-<?php
-        if ( ZM_RECORD_EVENT_STATS && ($frame['Type'] == 'Alarm') )
-        {
-?>
-              <td class="colScore"><?php echo makePopupLink( '?view=stats&amp;eid='.$event['Id'].'&amp;fid='.$frame['FrameId'], 'zmStats', 'stats', $frame['Score'] ) ?></td>
-<?php
-        }
-        else
-        {
-?> 
-              <td class="colScore"><?php echo $frame['Score'] ?></td>
-<?php
-        }
-?> 
-            </tr>
-<?php
-    }
-}
-else
-{
-?>
-            <tr>
-              <td colspan="5"><?php echo translate('NoFramesRecorded') ?></td>
-            </tr>
-<?php
-}
-?>
-          </tbody>
+
+    <!-- Table styling handled by bootstrap-tables -->
+    <div class="row justify-content-center table-responsive-sm">      
+      <table
+        id="framesTable"
+        data-locale="<?php echo i18n() ?>"
+        data-side-pagination="server"
+        data-ajax="ajaxRequest"
+        data-pagination="true"
+        data-show-pagination-switch="true"
+        data-page-list="[10, 25, 50, 100, 200, All]"
+        data-search="true"
+        data-cookie="true"
+        data-cookie-id-table="zmFramesTable"
+        data-cookie-expire="2y"
+        data-remember-order="true"
+        data-show-columns="true"
+        data-show-export="true"
+        data-toolbar="#toolbar"
+        data-show-fullscreen="true"
+        data-maintain-meta-data="true"
+        data-buttons-class="btn btn-normal"
+        data-detail-view="true"
+        data-detail-formatter="detailFormatter"
+        data-show-toggle="true"
+        data-show-jump-to="true"
+        data-show-refresh="true"
+        class="table-sm table-borderless">
+
+        <thead>
+          <!-- Row styling is handled by bootstrap-tables -->
+          <tr>
+            <th class="px-3" data-align="center" data-sortable="false" data-field="EventId"><?php echo translate('EventId') ?></th>
+            <th class="px-3" data-align="center" data-sortable="true" data-field="FrameId"><?php echo translate('FrameId') ?></th>
+            <th class="px-3" data-align="center" data-sortable="true" data-field="Type"><?php echo translate('Type') ?></th>
+            <th class="px-3" data-align="center" data-sortable="true" data-field="TimeStamp"><?php echo translate('TimeStamp') ?></th>
+            <th class="px-3" data-align="center" data-sortable="true" data-field="Delta"><?php echo translate('TimeDelta') ?></th>
+            <th class="px-3" data-align="center" data-sortable="true" data-field="Score"><?php echo translate('Score') ?></th>
+            <th class="px-3" data-align="center" data-sortable="false" data-field="Thumbnail"><?php echo translate('Thumbnail') ?></th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Row data populated via Ajax -->
+        </tbody>
         </table>
-        <div id="contentButtons">
-        </div>
-      </form>
-    </div>
+      </div>
   </div>
-</body>
-</html>
+<?php xhtmlFooter() ?>

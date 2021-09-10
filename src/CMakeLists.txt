@@ -1,52 +1,154 @@
 # CMakeLists.txt for the ZoneMinder binaries
 
 # Create files from the .in files
-configure_file(zm_config.h.in "${CMAKE_CURRENT_BINARY_DIR}/zm_config.h" @ONLY)
+configure_file(zm_config_data.h.in "${CMAKE_BINARY_DIR}/zm_config_data.h" @ONLY)
 
-# Group together all the source files that are used by all the binaries (zmc, zma, zmu, zms etc)
-set(ZM_BIN_SRC_FILES zm_box.cpp zm_buffer.cpp zm_camera.cpp zm_comms.cpp zm_config.cpp zm_coord.cpp zm_curl_camera.cpp zm.cpp zm_db.cpp zm_logger.cpp zm_event.cpp zm_exception.cpp zm_file_camera.cpp zm_ffmpeg_camera.cpp  zm_image.cpp zm_jpeg.cpp zm_libvlc_camera.cpp zm_local_camera.cpp zm_monitor.cpp zm_ffmpeg.cpp zm_mpeg.cpp zm_poly.cpp zm_regexp.cpp zm_remote_camera.cpp zm_remote_camera_http.cpp zm_remote_camera_rtsp.cpp zm_rtp.cpp  zm_rtp_ctrl.cpp zm_rtp_data.cpp zm_rtp_source.cpp zm_rtsp.cpp zm_rtsp_auth.cpp zm_sdp.cpp zm_signal.cpp zm_stream.cpp zm_thread.cpp zm_time.cpp zm_timer.cpp zm_user.cpp zm_utils.cpp zm_zone.cpp)
+# Group together all the source files that are used by all the binaries (zmc, zmu, zms etc)
+set(ZM_BIN_SRC_FILES
+  zm_analysis_thread.cpp
+  zm_buffer.cpp
+  zm_camera.cpp
+  zm_comms.cpp
+  zm_config.cpp
+  zm_curl_camera.cpp
+  zm_crypt.cpp
+  zm.cpp
+  zm_db.cpp
+  zm_decoder_thread.cpp
+  zm_logger.cpp
+  zm_event.cpp
+  zm_eventstream.cpp
+  zm_exception.cpp
+  zm_fifo.cpp
+  zm_fifo_debug.cpp
+  zm_fifo_stream.cpp
+  zm_file_camera.cpp
+  zm_font.cpp
+  zm_frame.cpp
+  zm_group.cpp
+  zm_image.cpp
+  zm_jpeg.cpp
+  zm_libvlc_camera.cpp
+  zm_libvnc_camera.cpp
+  zm_local_camera.cpp
+  zm_monitor.cpp
+  zm_monitorstream.cpp
+  zm_ffmpeg.cpp
+  zm_ffmpeg_camera.cpp
+  zm_ffmpeg_input.cpp
+  zm_mpeg.cpp
+  zm_packet.cpp
+  zm_packetqueue.cpp
+  zm_poly.cpp
+  zm_regexp.cpp
+  zm_remote_camera.cpp
+  zm_remote_camera_http.cpp
+  zm_remote_camera_nvsocket.cpp
+  zm_remote_camera_rtsp.cpp
+  zm_rtp.cpp
+  zm_rtp_ctrl.cpp
+  zm_rtp_data.cpp
+  zm_rtp_source.cpp
+  zm_rtsp.cpp
+  zm_rtsp_auth.cpp
+  zm_rtsp_server_fifo_source.cpp
+  zm_rtsp_server_fifo_adts_source.cpp
+  zm_rtsp_server_fifo_h264_source.cpp
+  zm_rtsp_server_fifo_audio_source.cpp
+  zm_rtsp_server_fifo_video_source.cpp
+  zm_sdp.cpp
+  zm_signal.cpp
+  zm_stream.cpp
+  zm_swscale.cpp
+  zm_user.cpp
+  zm_utils.cpp
+  zm_videostore.cpp
+  zm_zone.cpp
+  zm_storage.cpp)
 
 if(ZM_PLUGIN_SUPPORT)
-	set(ZM_BIN_SRC_FILES ${ZM_BIN_SRC_FILES} zm_detector.cpp zm_image_analyser.cpp zm_plugin.cpp zm_plugin_manager.cpp)
+    set(ZM_BIN_SRC_FILES ${ZM_BIN_SRC_FILES} zm_detector.cpp zm_image_analyser.cpp zm_plugin.cpp zm_plugin_manager.cpp)
 endif(ZM_PLUGIN_SUPPORT)
-
-# with -fPIC
-IF(UNIX AND NOT WIN32)
-	FIND_PROGRAM(CMAKE_UNAME uname /bin /usr/bin /usr/local/bin )
-	IF(CMAKE_UNAME)
-		EXEC_PROGRAM(uname ARGS -m OUTPUT_VARIABLE CMAKE_SYSTEM_PROCESSOR)
-		SET(CMAKE_SYSTEM_PROCESSOR ${CMAKE_SYSTEM_PROCESSOR} CACHE INTERNAL "processor type (i386 and x86_64)")
-		IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-			ADD_DEFINITIONS(-fPIC)
-		ENDIF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
-	ENDIF(CMAKE_UNAME)
-ENDIF(UNIX AND NOT WIN32)
 
 # A fix for cmake recompiling the source files for every target.
 add_library(zm STATIC ${ZM_BIN_SRC_FILES})
 
-add_executable(zmc zmc.cpp)
-add_executable(zma zma.cpp)
-add_executable(zmu zmu.cpp)
-add_executable(zmf zmf.cpp)
-add_executable(zms zms.cpp)
+target_include_directories(zm
+  PUBLIC
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(zmc -ldl zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
-target_link_libraries(zma -ldl zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
-target_link_libraries(zmu -ldl zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
-target_link_libraries(zmf -ldl zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
-target_link_libraries(zms -ldl zm ${ZM_EXTRA_LIBS} ${ZM_BIN_LIBS})
+target_link_libraries(zm
+  PUBLIC
+    FFMPEG::avcodec
+    FFMPEG::avformat
+    FFMPEG::avutil
+    FFMPEG::swresample
+    FFMPEG::swscale
+    libbcrypt::bcrypt
+    RtspServer::RtspServer
+    martinmoene::span-lite
+    ${ZM_BIN_LIBS}
+  PRIVATE
+    zm-core-interface)
+
+if(${ZM_JWT_BACKEND} STREQUAL "jwt_cpp")
+  target_link_libraries(zm
+    PUBLIC
+      jwt-cpp::jwt-cpp)
+elseif(${ZM_JWT_BACKEND} STREQUAL "libjwt")
+  target_link_libraries(zm
+    PUBLIC
+      JWT::libjwt)
+endif()
+
+add_executable(zmc zmc.cpp)
+add_executable(zms zms.cpp)
+add_executable(zmu zmu.cpp)
+
+target_link_libraries(zmc -ldl
+  PRIVATE
+    zm-core-interface
+    zm
+    ${ZM_EXTRA_LIBS}
+    ${CMAKE_DL_LIBS})
+
+target_link_libraries(zms -ldl
+  PRIVATE
+    zm-core-interface
+    zm
+    ${ZM_EXTRA_LIBS}
+    ${CMAKE_DL_LIBS})
+
+target_link_libraries(zmu -ldl
+  PRIVATE
+    zm-core-interface
+    zm
+    ${ZM_EXTRA_LIBS}
+    ${CMAKE_DL_LIBS})
 
 # Generate man files for the binaries destined for the bin folder
-FOREACH(CBINARY zma zmc zmf zmu)
-    POD2MAN(${CMAKE_CURRENT_SOURCE_DIR}/${CBINARY}.cpp zoneminder-${CBINARY} 8)
-ENDFOREACH(CBINARY zma zmc zmf zmu)
+if(BUILD_MAN)
+  foreach(CBINARY zmc zmu)
+    POD2MAN(${CMAKE_CURRENT_SOURCE_DIR}/${CBINARY}.cpp ${CBINARY} 8 ${ZM_MANPAGE_DEST_PREFIX})
+  endforeach(CBINARY zmc zmu)
+endif()
 
-install(TARGETS zmc zma zmu zmf RUNTIME DESTINATION "${CMAKE_INSTALL_FULL_BINDIR}" PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+install(TARGETS zmc zmu RUNTIME DESTINATION "${CMAKE_INSTALL_FULL_BINDIR}" PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 install(TARGETS zms RUNTIME DESTINATION "${ZM_CGIDIR}" PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
-install(CODE "execute_process(COMMAND ln -sf zms nph-zms WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})" )
+install(CODE "execute_process(COMMAND ln -sf zms nph-zms WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})")
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/nph-zms DESTINATION "${ZM_CGIDIR}")
 
+if(HAVE_RTSP_SERVER)
+  add_executable(zm_rtsp_server zm_rtsp_server.cpp)
+  target_link_libraries(zm_rtsp_server
+    PRIVATE
+      zm-core-interface
+      zm
+      ${ZM_EXTRA_LIBS}
+      ${CMAKE_DL_LIBS})
+  install(TARGETS zm_rtsp_server RUNTIME DESTINATION "${CMAKE_INSTALL_FULL_BINDIR}" PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+endif()
 if(ZM_PLUGIN_SUPPORT)
 	install(FILES jinclude.h zm_db.h zm_detector.h zm_logger.h zm_poly.h zm_mem_utils.h zm_box.h zm_ffmpeg.h zm_plugin_manager.h zm_plugin.h zm_jpeg.h zm_mpeg.h zm_image_analyser.h zm_zone.h zm_rgb.h zm_utils.h zm_event.h zm_stream.h zm_coord.h zm_image.h DESTINATION include/zoneminder)
 	install(FILES "${CMAKE_CURRENT_BINARY_DIR}/zm_config.h" "${CMAKE_CURRENT_BINARY_DIR}/zm_config_defines.h" DESTINATION include/zoneminder)

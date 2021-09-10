@@ -21,6 +21,10 @@ New installs
 
 1. Follow the normal instructions for your distro for installing ZoneMinder onto all the ZoneMinder servers in the normal fashion. Only a single database will be needed either as standalone, or on one of the ZoneMinder Servers.
 
+.. sidebar :: Note
+
+    For systemd based linux distros, inspect the zoneminder service file, typically found under /lib/systemd/system. Changes may be required for multiserver to function correctly. For example, the service file may check for a running instance of mysql or mariadb running locally on the server. This check will need to be removed. Rather than edit the service file directly, copy the service file to /etc/systemd/system and edit the file in that location.
+
 2. On each ZoneMinder server, edit zm.conf. Find the ZM_DB_HOST variable and set it to the name or ip address of your Database Server. Find the ZM_SERVER_HOST and enter a name for this ZoneMinder server. Use a name easily recognizable by you. This name is not used by ZoneMinder for dns or any other form of network conectivity.
 
 3. Copy the file /usr/share/zoneminder/db/zm_create.sql from one of the ZoneMinder Servers to the machine targeted as the Database Server.
@@ -42,13 +46,13 @@ Note that these commands are just an example and might not be secure enough for 
 
 7. If you have chosen to change the ZoneMinder database account credentials to something other than zmuser/zmpass, you must now update zm.conf on each ZoneMinder Server. Change ZM_DB_USER and ZM_DB_PASS to the values you created in the previous step.
 
-Additionally, you must also edit /usr/share/zoneminder/www/api/app/Config/database.php in a similar manner on each ZoneMinder Server. Scroll down and change login and password to the values you created in the previous step.
-
 8. All ZoneMinders Servers must share a common events folder. This can be done in any manner supported by the underlying operating system. From the Storage Server, share/export a folder to be used for ZoneMinder events.
 
 9. From each ZoneMinder Server, mount the shared events folder on the Storage Server to the events folder on the local ZoneMinder Server.
 
-NOTE: The location of this folder varies by distro. This folder is often found under "/var/lib/zoneminder/events" for RedHat based distros and "/var/cache/zoneminder/events" for Debain based distros. This folder is NOT a Symbolic Link!
+.. sidebar :: Note
+
+    The location of the ZoneMinder events folder varies by distro. This folder is often found under "/var/lib/zoneminder/events" for RedHat based distros and "/var/cache/zoneminder/events" for Debain based distros. This folder is NOT a Symbolic Link!
 
 10. Open your browser and point it to the web console on any of the ZoneMinder Servers (they will all be the same). Open Options, click the Servers tab,and populate this screen with all of your ZoneMinder Servers. Each server has a field for its name and its hostname. The name is what you used for ZM_SERVER_HOST in step 2. The hostname is the network name or ip address ZoneMinder should use.
 

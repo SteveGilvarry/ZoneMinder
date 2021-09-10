@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 #
 # ==========================================================================
 #
@@ -151,14 +151,14 @@ sub zmMemPut
 
 sub zmMemClean
 {
-    Debug( "Removing shared memory\n" );
+    Debug(2, 'Removing shared memory');
     # Find ZoneMinder shared memory
-    my $command = "ipcs -m | grep '^"
-                  .substr( sprintf( "0x%x", hex($Config{ZM_SHM_KEY}) ), 0, -2 )
-                  ."'"
+    my $command = 'ipcs -m | grep \'^'
+                  .substr( sprintf( '0x%x', hex($Config{ZM_SHM_KEY}) ), 0, -2 )
+                  .'\''
     ;
-    Debug( "Checking for shared memory with '$command'\n" );
-    open( my $CMD, '<', "$command |" )
+    Debug(2, 'Checking for shared memory with '.$command);
+    open( my $CMD, '<', $command.' |' )
         or Fatal( "Can't execute '$command': $!" );
     while( <$CMD> )
     {
@@ -167,8 +167,8 @@ sub zmMemClean
         if ( $id =~ /^(\d+)/ )
         {
             $id = $1;
-            $command = "ipcrm shm $id";
-            Debug( "Removing shared memory with '$command'\n" );
+            $command = 'ipcrm shm '.$id;
+            Debug(2, 'Removing shared memory with '.$command);
             qx( $command );
         }
     }

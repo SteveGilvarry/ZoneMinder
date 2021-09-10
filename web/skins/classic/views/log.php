@@ -15,103 +15,77 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-if ( !canView( 'System' ) )
-{
-    $view = "error";
-    return;
+if ( !canView('System') ) {
+  $view = 'error';
+  return;
 }
 
-$focusWindow = true;
-
-xhtmlHeaders(__FILE__, translate('SystemLog') );
+xhtmlHeaders(__FILE__, translate('SystemLog'));
 ?>
 <body>
-  <div id="page">
-    <div id="header">
-      <div id="headerButtons">
-          <input type="button" value="<?php echo translate('More') ?>" onclick="expandLog()"/>
-          <input type="button" value="<?php echo translate('Clear') ?>" onclick="clearLog()"/>
-          <input type="button" value="<?php echo translate('Refresh') ?>" onclick="refreshLog()"/>
-          <input type="button" value="<?php echo translate('Export') ?>" onclick="exportLog()"/>
-          <input type="button" value="<?php echo translate('Close') ?>" onclick="closeWindow()"/>
-      </div>
-      <h2 class="floating"><?php echo translate('SystemLog') ?></h2>
-      <div id="headerControl">
-        <table id="logSummary" cellspacing="0">
-          <tr>
-            <td><?php echo translate('Updated') ?>: <span id="lastUpdate"></span></td>
-            <td><?php echo translate('State') ?>: <span id="logState"></span></td>
-            <td><?php echo translate('Total') ?>: <span id="totalLogs"></span></td>
-            <td><?php echo translate('Available') ?>: <span id="availLogs"></span></td>
-            <td><?php echo translate('Displaying') ?>: <span id="displayLogs"></span></td>
-          </tr>
-        </table>
-      </div>
+  <?php echo getNavBarHTML() ?>
+  <div id="page" class="px-3 table-responsive-sm">
+
+    <div id="logSummary" class="text-center">
+      <?php echo translate('State') ?>:&nbsp;<span id="logState"></span>&nbsp;-&nbsp;
+      <?php echo translate('Total') ?>:&nbsp;<span id="totalLogs"></span>&nbsp;-&nbsp;
+      <?php echo translate('Available') ?>:&nbsp;<span id="availLogs"></span>&nbsp;-&nbsp;
+      <?php echo translate('Displaying') ?>:&nbsp;<span id="displayLogs"></span>&nbsp;-&nbsp;
+      <?php echo translate('Updated') ?>:&nbsp;<span id="lastUpdate"></span>
     </div>
-    <div id="content">
-      <div id="filters"><?php echo translate('FilterLog') ?> -
-        <?php echo translate('Component') ?> <select id="filter[Component]" onchange="filterLog(this)"><option value="">-----</option></select>
-        <?php echo translate('Server') ?> <select id="filter[ServerId]" onchange="filterLog(this)"><option value="">-----</option></select>
-        <?php echo translate('Pid') ?> <select id="filter[Pid]" onchange="filterLog(this)"><option value="">-----</option></select>
-        <?php echo translate('Level') ?> <select id="filter[Level]" onchange="filterLog(this)"><option value="">---</option></select>
-        <?php echo translate('File') ?> <select id="filter[File]" onchange="filterLog(this)"><option value="">------</option></select>
-        <?php echo translate('Line') ?> <select id="filter[Line]" onchange="filterLog(this)"><option value="">----</option></select>
-        <input type="reset" value="<?php echo translate('Reset') ?>" onclick="resetLog()"/>
-      </div>
-      <form name="logForm" method="post" action="<?php echo $_SERVER['PHP_SELF'] ?>">
-        <input type="hidden" name="view" value="<?php echo $view ?>"/>
-        <table id="logTable" class="major" cellspacing="0">
-          <thead>
-            <tr>
-              <th><?php echo translate('DateTime') ?></th>
-              <th class="table-th-nosort"><?php echo translate('Component') ?></th>
-              <th class="table-th-nosort"><?php echo translate('Server') ?></th>
-              <th class="table-th-nosort"><?php echo translate('Pid') ?></th>
-              <th class="table-th-nosort"><?php echo translate('Level') ?></th>
-              <th class="table-th-nosort"><?php echo translate('Message') ?></th>
-              <th class="table-th-nosort"><?php echo translate('File') ?></th>
-              <th class="table-th-nosort"><?php echo translate('Line') ?></th>
-            </tr>
-          </thead>
-          <tbody>
-          </tbody>
-        </table>
-        <div id="contentButtons">
-        </div>
-      </form>
+
+    <div id="toolbar">
+      <button id="backBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Back') ?>" disabled><i class="fa fa-arrow-left"></i></button>
+      <button id="refreshBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Refresh') ?>" ><i class="fa fa-refresh"></i></button>
     </div>
-  </div>
-  <div id="exportLog" class="overlay">
-    <div class="overlayHeader">
-      <div class="overlayTitle"><?php echo translate('ExportLog') ?></div>
-    </div>
-    <div class="overlayBody">
-      <div class="overlayContent">
-        <form id="exportForm" action="" method="post">
-          <fieldset>
-            <legend><?php echo translate('SelectLog') ?></legend>
-            <label for="selectorAll"><?php echo translate('All') ?></label><input type="radio" id="selectorAll" name="selector" value="all"/>
-            <label for="selectorFilter"><?php echo translate('Filter') ?></label><input type="radio" id="selectorFilter" name="selector" value="filter"/>
-            <label for="selectorCurrent"><?php echo translate('Current') ?></label><input type="radio" id="selectorCurrent" name="selector" value="current" title="<?php echo translate('ChooseLogSelection') ?>" data-validators="validate-one-required"/>
-          </fieldset>
-          <fieldset>
-            <legend><?php echo translate('SelectFormat') ?></legend>
-            <label for="formatText">TXT</label><input type="radio" id="formatText" name="format" value="text"/>
-            <label for="formatTSV">TSV</label><input type="radio" id="formatTSV" name="format" value="tsv"/>
-            <label for="formatXML">HTML</label><input type="radio" id="formatHTML" name="format" value="html"/>
-            <label for="formatXML">XML</label><input type="radio" id="formatXML" name="format" value="xml" title="<?php echo translate('ChooseLogFormat') ?>" class="validate-one-required"/>
-          </fieldset>
-          <div id="exportError">
-            <?php echo translate('ExportFailed') ?>: <span id="exportErrorText"></span>
-          </div>
-          <input type="button" id="exportButton" value="<?php echo translate('Export') ?>" onclick="exportRequest()"/>
-          <input type="button" value="<?php echo translate('Cancel') ?>" class="overlayCloser"/>
-        </form>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
+
+    <table
+      id="logTable"
+      data-locale="<?php echo i18n() ?>"
+      class="table-sm table-borderless"
+      data-side-pagination="server"
+      data-ajax="ajaxRequest"
+      data-pagination="true"
+      data-page-list="[10, 25, 50, 100, 200, 300, 400, 500]"
+      data-search="true"
+      data-advanced-search="true"
+      data-id-table="advancedTable"
+      data-cookie="true"
+      data-cookie-id-table="zmLogsTable"
+      data-cookie-expire="2y"
+      data-remember-order="true"
+      data-show-columns="true"
+      data-show-export="true"
+      data-toolbar="#toolbar"
+      data-show-fullscreen="true"
+      data-maintain-meta-data="true"
+      data-buttons-class="btn btn-normal"
+      data-show-jump-to="true"
+      data-auto-refresh="true"
+      data-auto-refresh-silent="true"
+      data-show-refresh="true"
+      data-auto-refresh-interval="5"
+    >
+      <thead class="thead-highlight">
+        <tr>
+          <th data-sortable="true" data-field="DateTime"><?php echo translate('DateTime') ?></th>
+          <th data-sortable="true" data-field="Component"><?php echo translate('Component') ?></th>
+          <th data-sortable="false" data-field="Server"><?php echo translate('Server') ?></th>
+          <th data-sortable="true" data-field="Pid"><?php echo translate('Pid') ?></th>
+          <th data-sortable="true" data-field="Code"><?php echo translate('Level') ?></th>
+          <th data-sortable="true" data-field="Message"><?php echo translate('Message') ?></th>
+          <th data-sortable="true" data-field="File"><?php echo translate('File') ?></th>
+          <th data-sortable="true" data-field="Line"><?php echo translate('Line') ?></th>
+        </tr>
+      </thead>
+
+      <tbody>
+      <!-- Row data populated via Ajax -->
+      </tbody>
+
+    </table>
+  </div><!--page-->
+<?php xhtmlFooter() ?>

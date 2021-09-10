@@ -15,12 +15,11 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-if ( !canView( 'Monitors' ) )
-{
-    $view = "error";
+if ( !canView('Monitors') ) {
+    $view = 'error';
     return;
 }
 
@@ -29,15 +28,16 @@ $zid = !empty($_REQUEST['zid'])?validInt($_REQUEST['zid']):0;
 
 
 if ( $zid > 0 ) {
-   $newZone = dbFetchOne( 'SELECT * FROM Zones WHERE MonitorId = ? AND Id = ?', NULL, array( $mid, $zid) );
+   $newZone = dbFetchOne('SELECT * FROM Zones WHERE MonitorId = ? AND Id = ?', NULL, array($mid, $zid));
 } else {
-   $view = "error";
+   $view = 'error';
    return;
 }
-$monitor = dbFetchMonitor ( $mid );
-$plugin = $_REQUEST['pl'];
+$monitor = ZM\Monitor::find_one($mid);
+// Only allow certain filename characters (not including a period) to prevent directory traversal.
+$plugin = preg_replace('/[^-a-zA-Z0-9]/', '', $_REQUEST['pl']);
 
-$plugin_path = dirname($_SERVER['SCRIPT_FILENAME'])."/plugins/".$plugin;
+$plugin_path = dirname(ZM_PLUGINS_CONFIG_PATH)."/".$plugin;
 
 $focusWindow = true;
 
@@ -248,27 +248,25 @@ xhtmlHeaders(__FILE__, pLang('Plugin') );
 <body>
   <div id="page">
     <div id="header">
-      <h2><?php echo pLang('Monitor') ?> <?php echo $monitor['Name'] ?> - <?php echo pLang('Zone') ?> <?php echo $newZone['Name'] ?> - <?php echo pLang('Plugin') ?> <?php echo $plugin ?></h2>
+      <h2><?php echo translate('Monitor') ?> <?php echo $monitor->Name() ?> - <?php echo translate('Zone') ?> <?php echo $newZone['Name'] ?> - <?php echo translate('Plugin') ?> <?php echo validHtmlStr($plugin) ?></h2>
     </div>
     <div id="content">
-      <form name="pluginForm" id="pluginForm" method="post" action="<?php echo $_SERVER['PHP_SELF'] ?>">
+      <form name="pluginForm" id="pluginForm" method="post" action="?">
         <input type="hidden" name="view" value="<?php echo $view ?>"/>
         <input type="hidden" name="action" value="plugin"/>
         <input type="hidden" name="mid" value="<?php echo $mid ?>"/>
         <input type="hidden" name="zid" value="<?php echo $zid ?>"/>
-        <input type="hidden" name="pl" value="<?php echo $plugin ?>"/>
+        <input type="hidden" name="pl" value="<?php echo validHtmlStr($plugin) ?>"/>
 
         <div id="settingsPanel">
-          <table id="pluginSettings" cellspacing="0">
+          <table id="pluginSettings">
             <tbody>
 <?php
-foreach($pOptions as $key => $popt)
-{
-   ?>
-            <tr><th scope="row"><?php echo pLang($key) ?></th>
+foreach($pluginOptions as $name => $popt) {
+?>
+            <tr><th scope="row"><?php echo pLang($name) ?></th>     
    <?php
-   switch($popt['Type'])
-   {
+   switch($popt['Type']) {
       case "checkbox":
             ?>
                <td>

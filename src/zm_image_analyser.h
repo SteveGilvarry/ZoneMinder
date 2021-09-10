@@ -1,21 +1,21 @@
 #ifndef ZM_IMAGE_ANALYSER_H
 #define ZM_IMAGE_ANALYSER_H
 
+
+
 #include <list>
 #include <string>
 #include <stdexcept>
-#include <fstream>
 #include <memory>
-#include <algorithm>
 
-#include "zm_detector.h"
+#include "zm.h"
 #include "zm_image.h"
 #include "zm_zone.h"
 #include "zm_event.h"
-#include "zm_db.h"
+#include "zm_detector.h"
 
 
-
+using namespace std;
 //! List of available detectors.
 typedef std::list<Detector *> DetectorsList;
 
@@ -50,17 +50,17 @@ typedef std::map<unsigned int,pZoneConf> PluginZoneConf;
 class ImageAnalyser {
   public:
 
-    //!Default constructor.
-    ImageAnalyser( int nMonitorId = 0 );
+  //!Default constructor.
+  ImageAnalyser() {};
 
-    //! Destructor.
-    ~ImageAnalyser();
+  //! Destructor.
+  ~ImageAnalyser();
 
-    //! Copy constructor.
-    ImageAnalyser(const ImageAnalyser& source);
+  //! Copy constructor.
+  ImageAnalyser(const ImageAnalyser& source);
 
-    //! Overloaded operator=.
-    ImageAnalyser& operator=(const ImageAnalyser& source);
+  //! Overloaded operator=.
+  ImageAnalyser& operator=(const ImageAnalyser& source);
 
     //! Adds new plugin's detector to the list of detectors.
     void addDetector(std::auto_ptr<Detector> Det)

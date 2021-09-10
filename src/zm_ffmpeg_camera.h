@@ -14,7 +14,7 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 // 
 
 #ifndef ZM_FFMPEG_CAMERA_H
@@ -22,62 +22,80 @@
 
 #include "zm_camera.h"
 
-#include "zm_buffer.h"
-//#include "zm_utils.h"
-#include "zm_ffmpeg.h"
+#include <memory>
 
+#if HAVE_LIBAVUTIL_HWCONTEXT_H
+typedef struct DecodeContext {
+      AVBufferRef *hw_device_ref;
+} DecodeContext;
+#endif
 //
 // Class representing 'ffmpeg' cameras, i.e. those which are
 // accessed using ffmpeg multimedia framework
 //
-class FfmpegCamera : public Camera
-{
-protected:
+class FfmpegCamera : public Camera {
+  protected:
     std::string         mPath;
-    std::string			mMethod;
-    std::string			mOptions;
+    std::string         mSecondPath;
+    std::string         mMethod;
+    std::string         mOptions;
+
+    std::string         encoder_options;
+    std::string         hwaccel_name;
+    std::string         hwaccel_device;
 
     int frameCount;    
 
-#if HAVE_LIBAVFORMAT
-    AVFormatContext     *mFormatContext;
-    int                 mVideoStreamId;
-    AVCodecContext      *mCodecContext;
-    AVCodec             *mCodec;
-    AVFrame             *mRawFrame; 
-    AVFrame             *mFrame;
-    _AVPIXELFORMAT         imagePixFormat;
+    _AVPIXELFORMAT      imagePixFormat;
 
-    int OpenFfmpeg();
-    int ReopenFfmpeg();
-    int CloseFfmpeg();
-    static int FfmpegInterruptCallback(void *ctx);
-    static void* ReopenFfmpegThreadCallback(void *ctx);
-    bool mIsOpening;
-    bool mCanCapture;
-    int mOpenStart;
-    pthread_t mReopenThread;
-#endif // HAVE_LIBAVFORMAT
-
-#if HAVE_LIBSWSCALE
-	struct SwsContext   *mConvertContext;
+    bool                use_hwaccel; //will default to on if hwaccel specified, will get turned off if there is a failure
+#if HAVE_LIBAVUTIL_HWCONTEXT_H
+    AVBufferRef *hw_device_ctx = nullptr;
 #endif
 
-public:
-	FfmpegCamera( int p_id, const std::string &path, const std::string &p_method, const std::string &p_options, int p_width, int p_height, int p_colours, int p_brightness, int p_contrast, int p_hue, int p_colour, bool p_capture );
-	~FfmpegCamera();
+    // Used to store the incoming packet, it will get copied when queued. 
+    // We only ever need one at a time, so instead of constantly allocating
+    // and freeing this structure, we will just make it a member of the object.
+    AVPacket packet;       
 
-    const std::string &Path() const { return( mPath ); }
-    const std::string &Options() const { return( mOptions ); } 
-    const std::string &Method() const { return( mMethod ); }
+    int OpenFfmpeg();
+    int Close() override;
+    bool mCanCapture;
 
-	void Initialise();
-	void Terminate();
+    struct SwsContext   *mConvertContext;
 
-	int PrimeCapture();
-	int PreCapture();
-	int Capture( Image &image );
-	int PostCapture();
+    int                 error_count;
+
+  public:
+    FfmpegCamera(
+        const Monitor *monitor,
+        const std::string &path,
+        const std::string &second_path,
+        const std::string &p_method,
+        const std::string &p_options,
+        int p_width,
+        int p_height,
+        int p_colours,
+        int p_brightness,
+        int p_contrast,
+        int p_hue,
+        int p_colour,
+        bool p_capture,
+        bool p_record_audio,
+        const std::string &p_hwaccel_name,
+        const std::string &p_hwaccel_device
+        );
+    ~FfmpegCamera();
+
+    const std::string &Path() const { return mPath; }
+    const std::string &Options() const { return mOptions; } 
+    const std::string &Method() const { return mMethod; }
+
+    int PrimeCapture() override;
+    int PreCapture() override;
+    int Capture(std::shared_ptr<ZMPacket> &p) override;
+    int PostCapture() override;
+  private:
+    static int FfmpegInterruptCallback(void*ctx);
 };
-
 #endif // ZM_FFMPEG_CAMERA_H

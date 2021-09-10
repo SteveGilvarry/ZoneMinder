@@ -1,6 +1,6 @@
 <?php
 //
-// ZoneMinder web zones view file, $Date$, $Revision$
+// ZoneMinder web zones view file
 // Copyright (C) 2001-2008 Philip Coombes
 //
 // This program is free software; you can redistribute it and/or
@@ -15,91 +15,124 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-if ( !canView( 'Monitors' ) )
-{
-    $view = "error";
-    return;
+$mids = null;
+if ( isset($_REQUEST['mid']) ) {
+  $mids = array();
+  $mids[] = validInt($_REQUEST['mid']);
+} else if ( isset($_REQUEST['mids']) ) {
+  $mids = $_REQUEST['mids'];
+} else {
+  $mids = dbFetchAll('SELECT Id FROM Monitors'.($user['MonitorIds'] ? 'WHERE Id IN ('.$user['MonitorIds'].')' : ''), 'Id');
 }
 
-$mid = validInt($_REQUEST['mid']);
-$wd = getcwd();
-chdir( ZM_DIR_IMAGES );
-$status = exec( escapeshellcmd( getZmuCommand( " -m ".$mid." -z" ) ) );
-chdir( $wd );
-
-$monitor = dbFetchMonitor( $mid );
-
-$zones = array();
-foreach( dbFetchAll( 'select * from Zones where MonitorId = ? order by Area desc', NULL, array($mid) ) as $row )
-{
-    if ( $row['Points'] = coordsToPoints( $row['Coords'] ) )
-    {
-        $row['AreaCoords'] = preg_replace( '/\s+/', ',', $row['Coords'] );
-        $zones[] = $row;
-    }
+if ( !($mids and count($mids)) ) {
+  $view = 'error';
+  return;
 }
+$monitors = ZM\ZM_Object::Objects_Indexed_By_Id('ZM\Monitor', array('Id'=>$mids));
 
-$image = 'Zones'.$monitor['Id'].'.jpg';
-
-xhtmlHeaders(__FILE__, translate('Zones') );
+xhtmlHeaders(__FILE__, translate('Zones'));
 ?>
 <body>
+  <?php echo getNavBarHTML() ?>
   <div id="page">
-    <div id="header">
-      <div id="headerButtons"><a href="#" onclick="closeWindow();"><?php echo translate('Close') ?></a></div>
-      <h2><?php echo translate('Zones') ?></h2>
+    <div class="w-100 py-1">
+      <div class="float-left pl-3">
+        <button type="button" id="backBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Back') ?>" disabled><i class="fa fa-arrow-left"></i></button>
+        <button type="button" id="refreshBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Refresh') ?>" ><i class="fa fa-refresh"></i></button>
+      </div>
+      <div class="w-100 pt-2">
+        <h2><?php echo translate('Zones') ?></h2>
+      </div>
     </div>
     <div id="content">
-      <map name="zoneMap" id="zoneMap">
-<?php
-foreach( array_reverse($zones) as $zone )
-{
-?>
-        <area shape="poly" alt="<?php echo htmlspecialchars($zone['Name']) ?>" coords="<?php echo $zone['AreaCoords'] ?>" href="#" onclick="createPopup( '?view=zone&amp;mid=<?php echo $mid ?>&amp;zid=<?php echo $zone['Id'] ?>', 'zmZone', 'zone', <?php echo $monitor['Width'] ?>, <?php echo $monitor['Height'] ?> ); return( false );"/>
-<?php
-}
-?>
-        <!--<area shape="default" nohref>-->
-      </map>
-      <img src="<?php echo ZM_DIR_IMAGES.'/'.$image ?>" alt="zones" usemap="#zoneMap" width="<?php echo $monitor['Width'] ?>" height="<?php echo $monitor['Height'] ?>" border="0"/>
-      <form name="contentForm" id="contentForm" method="get" action="<?php echo $_SERVER['PHP_SELF'] ?>">
+      <form name="contentForm" id="contentForm" method="get" action="?">
         <input type="hidden" name="view" value="<?php echo $view ?>"/>
         <input type="hidden" name="action" value="delete"/>
-        <input type="hidden" name="mid" value="<?php echo $mid ?>"/>
-        <table id="contentTable" class="major" cellspacing="0">
-          <thead>
-            <tr>
-              <th class="colName"><?php echo translate('Name') ?></th>
-              <th class="colType"><?php echo translate('Type') ?></th>
-              <th class="colUnits"><?php echo translate('AreaUnits') ?></th>
-              <th class="colMark"><?php echo translate('Mark') ?></th>
-            </tr>
-          </thead>
-          <tbody>
 <?php
-foreach( $zones as $zone )
-{
+  foreach ( $mids as $mid ) {
+    $monitor = $monitors[$mid];
+    $monitor->connKey();
+    # ViewWidth() and ViewHeight() are already rotated
+    $minX = 0;
+    $maxX = $monitor->ViewWidth()-1;
+    $minY = 0;
+    $maxY = $monitor->ViewHeight()-1;
+
+    $zones = array();
+    foreach ( dbFetchAll('SELECT * FROM Zones WHERE MonitorId=? ORDER BY Area DESC', NULL, array($mid)) as $row ) {
+      $row['Points'] = coordsToPoints($row['Coords']);
+
+      limitPoints($row['Points'], $minX, $minY, $maxX, $maxY);
+      $row['Coords'] = pointsToCoords($row['Points']);
+      $row['AreaCoords'] = preg_replace('/\s+/', ',', $row['Coords']);
+      $zones[] = $row;
+    }
+
+    $options = array('width'=>'100%', 'height'=>'auto');
 ?>
-            <tr>
-              <td class="colName"><a href="#" onclick="createPopup( '?view=zone&amp;mid=<?php echo $mid ?>&amp;zid=<?php echo $zone['Id'] ?>', 'zmZone', 'zone', <?php echo $monitor['Width'] ?>, <?php echo $monitor['Height'] ?> ); return( false );"><?php echo $zone['Name'] ?></a></td>
-              <td class="colType"><?php echo $zone['Type'] ?></td>
-              <td class="colUnits"><?php echo $zone['Area'] ?>&nbsp;/&nbsp;<?php echo sprintf( "%.2f", ($zone['Area']*100)/($monitor['Width']*$monitor['Height']) ) ?></td>
-              <td class="colMark"><input type="checkbox" name="markZids[]" value="<?php echo $zone['Id'] ?>" onclick="configureDeleteButton( this );"<?php if ( !canEdit( 'Monitors' ) ) { ?> disabled="disabled"<?php } ?>/></td>
-            </tr>
+    <div class="Monitor">
+        <input type="hidden" name="mids[]" value="<?php echo $mid ?>"/>
+        <div class="ZonesImage">
+          <?php echo getStreamHTML($monitor, $options); ?>
+          <svg class="zones" viewBox="0 0 <?php echo $monitor->ViewWidth().' '.$monitor->ViewHeight() ?>">
 <?php
-}
+      foreach( array_reverse($zones) as $zone ) {
 ?>
-          </tbody>
-        </table>
-        <div id="contentButtons">
-          <input type="button" value="<?php echo translate('AddNewZone') ?>" onclick="createPopup( '?view=zone&amp;mid=<?php echo $mid ?>&amp;zid=0', 'zmZone', 'zone', <?php echo $monitor['Width'] ?>, <?php echo $monitor['Height'] ?> );"<?php if ( !canEdit( 'Monitors' ) ) { ?> disabled="disabled"<?php } ?>/>
-          <input type="submit" name="deleteBtn" value="<?php echo translate('Delete') ?>" disabled="disabled"/>
+            <polygon points="<?php echo $zone['AreaCoords'] ?>"
+                     class="zmlink <?php echo $zone['Type']?>"
+                     data-on-click-true="streamCmdQuit"
+                     data-url="?view=zone&amp;mid=<?php echo $mid ?>&amp;zid=<?php echo $zone['Id'] ?>"
+            />
+<?php
+      } // end foreach zone
+?>
+          Sorry, your browser does not support inline SVG
+        </svg>
+        <div id="monitorState">
+          <?php echo translate('State') ?>:&nbsp;<span id="stateValue<?php echo $monitor->Id() ?>"></span>&nbsp;-&nbsp;<span id="fpsValue<?php echo $monitor->Id() ?>"></span>&nbsp;fps
         </div>
+        </div>
+				<div class="zones">
+					<table id="zonesTable" class="major">
+						<thead>
+							<tr>
+								<th class="colName"><?php echo translate('Name') ?></th>
+								<th class="colType"><?php echo translate('Type') ?></th>
+								<th class="colUnits"><?php echo translate('AreaUnits') ?></th>
+								<th class="colMark"><?php echo translate('Mark') ?></th>
+							</tr>
+						</thead>
+						<tbody>
+	<?php
+	foreach( $zones as $zone ) {
+	?>
+							<tr>
+								<td class="colName"><?php echo makeLink('?view=zone&mid='.$mid.'&zid='.$zone['Id'], validHtmlStr($zone['Name']), true, 'data-on-click-true="streamCmdQuit"'); ?></td>
+								<td class="colType"><?php echo validHtmlStr($zone['Type']) ?></td>
+								<td class="colUnits"><?php echo $zone['Area'] ?>&nbsp;/&nbsp;<?php echo sprintf('%.2f', ($zone['Area']*100)/($monitor->ViewWidth()*$monitor->ViewHeight()) ) ?></td>
+								<td class="colMark"><input type="checkbox" name="markZids[]" value="<?php echo $zone['Id'] ?>" data-on-click-this="configureDeleteButton"<?php if ( !canEdit('Monitors') ) { ?> disabled="disabled"<?php } ?>/></td>
+							</tr>
+	<?php
+	}
+	?>
+						</tbody>
+					</table>
+                                     <div id="contentButtons">
+                                       <?php echo makeButton('?view=zone&mid='.$mid.'&zid=0', 'AddNewZone', canEdit('Monitors')); ?>
+                                       <button type="submit" name="deleteBtn" value="Delete" disabled="disabled"><?php echo translate('Delete') ?></button>
+                                     </div>
+				</div><!--zones-->
+<br class="clear"/>
+      </div><!--Monitor-->
+<?php 
+  } # end foreach monitor
+?>
       </form>
     </div>
   </div>
-</body>
-</html>
+  <script src="<?php echo cache_bust('js/MonitorStream.js') ?>"></script>
+<?php xhtmlFooter() ?>

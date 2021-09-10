@@ -1,23 +1,13 @@
 #include "zm_image_analyser.h"
 
-ImageAnalyser::ImageAnalyser( int nMonitorId )
-{
-    if ( nMonitorId > 0 )
-    {
-        m_nMonitorId = nMonitorId;
-        m_bIsAnalyserEnabled = getMonitorZones();
-    }
-    else
-        m_bIsAnalyserEnabled = false;
-    m_bIsNativeDetEnabled = false;
-}
+
 
 /*!\fn ImageAnalyser::ImageAnalyser(const ImageAnalyser& source)
  * \param source is the object to copy
  */
 ImageAnalyser::ImageAnalyser(const ImageAnalyser& source)
 {
-    m_Detectors = source.m_Detectors;
+  m_Detectors = source.m_Detectors;
 }
 
 
@@ -27,117 +17,50 @@ ImageAnalyser::ImageAnalyser(const ImageAnalyser& source)
  */
 ImageAnalyser& ImageAnalyser::operator=(const ImageAnalyser& source)
 {
-    m_Detectors = source.m_Detectors;
-    return *this;
+  m_Detectors = source.m_Detectors;
+  return *this;
 }
 
 
 
 ImageAnalyser::~ImageAnalyser()
 {
-    for(DetectorsList::reverse_iterator It = m_Detectors.rbegin();
-        It != m_Detectors.rend();
-        ++It)
-      delete *It;
+  for(DetectorsList::reverse_iterator It = m_Detectors.rbegin();
+    It != m_Detectors.rend();
+    ++It)
+    delete *It;
 }
 
-void ImageAnalyser::onCreateEvent(Zone** zones, Event* event)
-{
-    for ( DetectorsList::iterator It = m_Detectors.begin();
-        It != m_Detectors.end();
-        ++It )
-    {
-        (*It)->_onCreateEvent(zones, event);
-    }
-}
 
-void ImageAnalyser::onCloseEvent(Zone** zones, Event* event)
-{
-    for ( DetectorsList::iterator It = m_Detectors.begin();
-        It != m_Detectors.end();
-        ++It )
-    {
-        (*It)->_onCloseEvent(zones, event);
-    }
-}
 
-/*!\fn ImageAnalyser::DoDetection(const Image &comp_image, Zone** zones, Event::StringSetMap noteSetMap, std::string& det_cause, unsigned int& score)
+/*!\fn ImageAnalyser::DoDetection(const Image &comp_image, Zone** zones, int n_numZones, Event::StringSetMap noteSetMap, std::string& det_cause)
  * \param comp_image is the image to analyse
  * \param zones is the zones array to analyse
+ * \param n_numZones is the number of zones
  * \param noteSetMap is the map of events descriptions
  * \param det_cause is a string describing detection cause
  * \param score is the plugin score
  */
-bool ImageAnalyser::DoDetection(const Image &comp_image, Zone** zones, Event::StringSetMap& noteSetMap, std::string& det_cause, unsigned int& score)
+int ImageAnalyser::DoDetection(const Image &comp_image, Zone** zones, int n_numZones, Event::StringSetMap noteSetMap, std::string& det_cause, unsigned int& score)
 {
-    Event::StringSet zoneSet;
-    score = 0;
-    bool alarm = false;
+  Event::StringSet zoneSet;
+  int score = 0;
 
-    for ( DetectorsList::iterator It = m_Detectors.begin();
-        It != m_Detectors.end();
-        ++It )
+  for(DetectorsList::iterator It = m_Detectors.begin();
+    It != m_Detectors.end();
+    ++It)
+  {
+    int detect_score = (*It)->Detect(comp_image, zones, n_numZones, zoneSet);
+    if (detect_score)
     {
-        unsigned int detect_score = 0;
-        if ( (*It)->Detect( comp_image, zones, detect_score ) )
-        {
-            alarm = true;
-            score += detect_score;
-            std::string new_cause = (*It)->getDetectionCause();
-            noteSetMap[new_cause] = zoneSet;
-            if ( det_cause.find( new_cause ) == std::string::npos )
-            {
-                if ( det_cause.length() )
-                    det_cause += ", ";
-                det_cause += new_cause;
-            }
-        }
+      score += detect_score;
+      noteSetMap[(*It)->getDetectionCause()] = zoneSet;
+      if (det_cause.length())
+        det_cause += ", ";
+      det_cause += (*It)->getDetectionCause();
     }
-    return alarm;
-}
-
-
-
-/*!\fn ImageAnalyser::configurePlugins(std::string sConfigFileName, bool bDoNativeDet)
- *\param sConfigFileName is the path to the configuration file, where parameters for all plugins are given.
- * \param bDoNativeDet is true if native detection will be performed
-*/
-void ImageAnalyser::configurePlugins(std::string sConfigFileName, bool bDoNativeDet)
-{
-    std::string sLoadedPlugins;
-    if ( !m_bIsAnalyserEnabled ) return;
-    m_bIsNativeDetEnabled = bDoNativeDet;
-    for ( DetectorsList::iterator It = m_Detectors.begin(); It != m_Detectors.end(); ++It )
-    {
-        std::string sPluginName = (*It)->getPluginName();
-        try
-        {
-            if ( isValidConfigFile( sPluginName, sConfigFileName ) )
-            {
-                Info("Configure plugin '%s' with config file '%s'.", sPluginName.c_str(), sConfigFileName.c_str());
-                std::map<unsigned int,std::map<std::string,std::string> > mapPluginConf;
-                std::vector<unsigned int> vnPluginZones;
-                bool plugEnabled = getEnabledZonesForPlugin( sPluginName, vnPluginZones );
-                if ( getPluginConfig( sPluginName, vnPluginZones, mapPluginConf )
-                        && (*It)->loadConfig( sConfigFileName, mapPluginConf ) )
-                {
-                    mapRegPluginGenConf[sPluginName].Configured = true;
-                    if ( plugEnabled )
-                    {
-                        (*It)->EnablePlugin( vnPluginZones );
-                        if ( sLoadedPlugins.length() )
-                            sLoadedPlugins += ", ";
-                        sLoadedPlugins += "'" + sPluginName + "'";
-                    }
-                }
-            }
-        }
-        catch(...)
-        {
-            Error("Plugin '%s' couldn't be loaded", sPluginName.c_str());
-        }
-    }
-    getZonesConfig( sLoadedPlugins );
+  }
+  return score;
 }
 
 

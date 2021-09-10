@@ -7,114 +7,157 @@ App::uses('AppController', 'Controller');
  */
 class ZonesController extends AppController {
 
-// Find all zones which belong to a MonitorId
-	public function forMonitor($id = null) {
-		$this->loadModel('Monitor');
-		if (!$this->Monitor->exists($id)) {
-			throw new NotFoundException(__('Invalid monitor'));
-		}
+  /**
+   * Components
+   *      
+   * @var array
+   */     
+  public $components = array('RequestHandler');
 
-		$this->Zone->recursive = -1;
+  public function beforeFilter() {
+    parent::beforeFilter();
 
-		$zones = $this->Zone->find('all', array(
-			'conditions' => array('MonitorId' => $id)
-		));
-		$this->set(array(
-			'zones' => $zones,
-			'_serialize' => array('zones')
-		));
-	}
-/**
- * add method
- *
- * @return void
- */
-	public function add() {
-		if ($this->request->is('post')) {
-			$this->Zone->create();
-			if ($this->Zone->save($this->request->data)) {
-				return $this->flash(__('The zone has been saved.'), array('action' => 'index'));
-			}
-		}
-		$monitors = $this->Zone->Monitor->find('list');
-		$this->set(compact('monitors'));
-	}
+    global $user;
+    $canView = (!$user) || ($user['Monitors'] != 'None');
+    if ( !$canView ) {
+      throw new UnauthorizedException(__('Insufficient Privileges'));
+      return;
+    }
+  }
 
-/**
- * edit method
- *
- * @throws NotFoundException
- * @param string $id
- * @return void
- */
-	public function edit($id = null) {
-		$this->Zone->id = $id;
+  // Find all zones which belong to a MonitorId
+  public function forMonitor($id = null) {
+    $this->loadModel('Monitor');
+    if ( !$this->Monitor->exists($id) ) {
+      throw new NotFoundException(__('Invalid monitor'));
+    }
+    $this->Zone->recursive = -1;
+    $zones = $this->Zone->find('all', array(
+      'conditions' => array('MonitorId' => $id)
+    ));
+    $this->set(array(
+      'zones' => $zones,
+      '_serialize' => array('zones')
+    ));
+  }
 
-		if (!$this->Zone->exists($id)) {
-			throw new NotFoundException(__('Invalid zone'));
-		}
-		if ($this->request->is(array('post', 'put'))) {
-			if ($this->Zone->save($this->request->data)) {
-				return $this->flash(__('The zone has been saved.'), array('action' => 'index'));
-			}
-		} else {
-			$options = array('conditions' => array('Zone.' . $this->Zone->primaryKey => $id));
-			$this->request->data = $this->Zone->find('first', $options);
-		}
-		$monitors = $this->Zone->Monitor->find('list');
-		$this->set(compact('monitors'));
-	}
+  public function index() {
+    $this->Zone->recursive = -1;
 
-/**
- * delete method
- *
- * @throws NotFoundException
- * @param string $id
- * @return void
- */
-	public function delete($id = null) {
-		$this->Zone->id = $id;
-		if (!$this->Zone->exists()) {
-			throw new NotFoundException(__('Invalid zone'));
-		}
-		$this->request->allowMethod('post', 'delete');
-		if ($this->Zone->delete()) {
-			return $this->flash(__('The zone has been deleted.'), array('action' => 'index'));
-		} else {
-			return $this->flash(__('The zone could not be deleted. Please, try again.'), array('action' => 'index'));
-		}
-	}
+    global $user;
+    $allowedMonitors = $user ? preg_split('@,@', $user['MonitorIds'],NULL, PREG_SPLIT_NO_EMPTY) : null;
+    if ( $allowedMonitors ) {
+      $mon_options = array('Zones.MonitorId' => $allowedMonitors);
+    } else {
+      $mon_options = '';
+    }
+    $zones = $this->Zone->find('all',$mon_options);
+    $this->set(array(
+      'zones' => $zones,
+      '_serialize' => array('zones')
+    ));
+  }
 
+  /**
+   * add method
+   *
+   * @return void
+   */
+  public function add() {
 
+    if ( !$this->request->is('post') ) {
+      throw new BadRequestException(__('Invalid method. Should be post'));
+      return;
+    }
 
-	public function createZoneImage( $id = null ) {
-		$this->loadModel('Monitor');
-		$this->Monitor->id = $id;
-		if (!$this->Monitor->exists()) {
-			throw new NotFoundException(__('Invalid zone'));
-		}
+    global $user;
+    $canEdit = (!$user) || $user['Monitors'] == 'Edit';
+    if ( !$canEdit ) {
+      throw new UnauthorizedException(__('Insufficient Privileges'));
+      return;
+    }
 
+    $zone = null;
 
-		$this->loadModel('Config');
-		$zm_dir_images = $this->Config->find('list', array(
-			'conditions' => array('Name' => 'ZM_DIR_IMAGES'),
-			'fields' => array('Name', 'Value')
-		));
+    $this->Zone->create();
+    $zone = $this->Zone->save($this->request->data);
+    if ( $zone ) {
+      require_once __DIR__ .'/../../../includes/Monitor.php';
+      $monitor = new ZM\Monitor($zone['Zone']['MonitorId']);
+      $monitor->zmcControl('restart');
+      $message = 'Saved';
+      //$zone = $this->Zone->find('first', array('conditions' => array( array('Zone.' . $this->Zone->primaryKey => $this->Zone),
+    } else {
+      $message = 'Error: ';
+      // if there is a validation message, use it
+      if ( !$this->Zone->validates() ) {
+        $message = $this->Zone->validationErrors;
+      }
+    }
 
-		$zm_dir_images = $zm_dir_images['ZM_DIR_IMAGES'];
-		$zm_path_web = Configure::read('ZM_PATH_WEB');
-		$zm_path_bin = Configure::read('ZM_PATH_BIN');
-		$images_path = "$zm_path_web/$zm_dir_images";
+    $this->set(array(
+      'message' => $message,
+      'zone' => $zone,
+      '_serialize' => array('message','zone')
+    ));
+  } // end function add()
 
-		chdir($images_path);
+  /**
+   * edit method
+   *
+   * @throws NotFoundException
+   * @param string $id
+   * @return void
+   */
+  public function edit($id = null) {
+    $this->Zone->id = $id;
 
-		$command = escapeshellcmd("$zm_path_bin/zmu -z -m $id");
-		system( $command, $status );
+    if ( !$this->Zone->exists($id) ) {
+      throw new NotFoundException(__('Invalid zone'));
+    }
+    $message = '';
+    if ( $this->request->is(array('post', 'put')) ) {
+      global $user;
+      $canEdit = (!$user) || $user['Monitors'] == 'Edit';
+      if ( !$canEdit ) {
+        throw new UnauthorizedException(__('Insufficient Privileges'));
+        return;
+      }
+      if ( $this->Zone->save($this->request->data) ) {
+        $message = 'The zone has been saved.';
+      } else {
+        $message = 'Error ' . print_r($this->Zone->invalidFields());
+      }
+    }
+    $this->set(array(
+      'message' => $message,
+      '_serialize' => array('message')
+    ));
+  }
 
-		$this->set(array(
-			'status' => $status,
-			'_serialize' => array('status')
-		));
-
-	}
-}
+  /**
+   * delete method
+   *
+   * @throws NotFoundException
+   * @param string $id
+   * @return void
+   */
+  public function delete($id = null) {
+    $this->Zone->id = $id;
+    if ( !$this->Zone->exists() ) {
+      throw new NotFoundException(__('Invalid zone'));
+    }
+    $this->request->allowMethod('post', 'delete');
+    global $user;
+    $canEdit = (!$user) || $user['Monitors'] == 'Edit';
+    if ( !$canEdit ) {
+      throw new UnauthorizedException(__('Insufficient Privileges'));
+      return;
+    }
+    if ( $this->Zone->delete() ) {
+      return $this->flash(__('The zone has been deleted.'), array('action' => 'index'));
+    } else {
+      return $this->flash(__('The zone could not be deleted. Please, try again.'), array('action' => 'index'));
+    }
+  }
+} // end class

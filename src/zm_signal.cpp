@@ -14,30 +14,29 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 // 
 
-#include "zm.h"
 #include "zm_signal.h"
 
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
+#include "zm.h"
+#include "zm_logger.h"
+#include <cstring>
 
 #define TRACE_SIZE 16
 
 bool zm_reload = false;
 bool zm_terminate = false;
 
-RETSIGTYPE zm_hup_handler(int signal)
-{
-	Info("Got signal %d (%s), reloading", signal, strsignal(signal));
+RETSIGTYPE zm_hup_handler(int signal) {
+  // Shouldn't do complex things in signal handlers, logging is complex and can block due to mutexes.
+	//Info("Got signal %d (%s), reloading", signal, strsignal(signal));
 	zm_reload = true;
 }
 
-RETSIGTYPE zm_term_handler(int signal)
-{
-	Info("Got signal %d (%s), exiting", signal, strsignal(signal));
+RETSIGTYPE zm_term_handler(int signal) {
+  // Shouldn't do complex things in signal handlers, logging is complex and can block due to mutexes.
+	//Info("Got signal %d (%s), exiting", signal, strsignal(signal));
 	zm_terminate = true;
 }
 
@@ -47,17 +46,13 @@ RETSIGTYPE zm_die_handler(int signal, siginfo_t * info, void *context)
 RETSIGTYPE zm_die_handler(int signal)
 #endif
 {
-#if (defined(__i386__) || defined(__x86_64__))
-	void *cr2 = 0;
-	void *ip = 0;
-#endif
 	Error("Got signal %d (%s), crashing", signal, strsignal(signal));
-
 #if (defined(__i386__) || defined(__x86_64__))
 	// Get more information if available
-#if ( HAVE_SIGINFO_T && HAVE_UCONTEXT_T )
-	if (info && context) {
-
+  #if ( HAVE_SIGINFO_T && HAVE_UCONTEXT_T )
+	void *ip = nullptr;
+	void *cr2 = nullptr;
+	if ( info && context ) {
 		Debug(1,
 		      "Signal information: number %d code %d errno %d pid %d uid %d status %d",
 		      signal, info->si_code, info->si_errno, info->si_pid,
@@ -65,32 +60,32 @@ RETSIGTYPE zm_die_handler(int signal)
 
 		ucontext_t *uc = (ucontext_t *) context;
 		cr2 = info->si_addr;
-#if defined(__x86_64__)
-	#ifdef __FreeBSD_kernel__
+    #if defined(__x86_64__)
+	    #if defined(__FreeBSD_kernel__) || defined(__FreeBSD__) 
 		ip = (void *)(uc->uc_mcontext.mc_rip);
-	#else
+	    #else
 		ip = (void *)(uc->uc_mcontext.gregs[REG_RIP]);
-	#endif
-#else
-	#ifdef __FreeBSD_kernel__
+	    #endif
+    #else
+	    #if defined(__FreeBSD_kernel__) || defined(__FreeBSD__)
 		ip = (void *)(uc->uc_mcontext.mc_eip);
-	#else
+	    #else
 		ip = (void *)(uc->uc_mcontext.gregs[REG_EIP]);
-	#endif
-#endif				// defined(__x86_64__)
+	    #endif
+    #endif				// defined(__x86_64__)
 
 		// Print the signal address and instruction pointer if available
-		if (ip) {
+		if ( ip ) {
 			Error("Signal address is %p, from %p", cr2, ip);
 		} else {
 			Error("Signal address is %p, no instruction pointer", cr2);
 		}
 	}
-#endif				// ( HAVE_SIGINFO_T && HAVE_UCONTEXT_T )
+  #endif				// ( HAVE_SIGINFO_T && HAVE_UCONTEXT_T )
 
 
 	// Print backtrace if enabled and available
-#if ( !defined(ZM_NO_CRASHTRACE) && HAVE_DECL_BACKTRACE && HAVE_DECL_BACKTRACE_SYMBOLS )
+  #if ( !defined(ZM_NO_CRASHTRACE) && HAVE_DECL_BACKTRACE && HAVE_DECL_BACKTRACE_SYMBOLS )
 	void *trace[TRACE_SIZE];
 	int trace_size = 0;
 	trace_size = backtrace(trace, TRACE_SIZE);
@@ -109,15 +104,13 @@ RETSIGTYPE zm_die_handler(int signal)
 	}
 	free(messages);
 
-	Info("Backtrace complete, please execute the following command for more information");
-	Info(cmd);
-#endif				// ( !defined(ZM_NO_CRASHTRACE) && HAVE_DECL_BACKTRACE && HAVE_DECL_BACKTRACE_SYMBOLS )
+	Info("Backtrace complete, please execute the following command for more information: %s", cmd);
+  #endif				// ( !defined(ZM_NO_CRASHTRACE) && HAVE_DECL_BACKTRACE && HAVE_DECL_BACKTRACE_SYMBOLS )
 #endif                          // (defined(__i386__) || defined(__x86_64__)
 	exit(signal);
 }
 
-void zmSetHupHandler(SigHandler * handler)
-{
+void zmSetHupHandler(SigHandler * handler) {
 	sigset_t block_set;
 	sigemptyset(&block_set);
 	struct sigaction action, old_action;
@@ -128,8 +121,7 @@ void zmSetHupHandler(SigHandler * handler)
 	sigaction(SIGHUP, &action, &old_action);
 }
 
-void zmSetTermHandler(SigHandler * handler)
-{
+void zmSetTermHandler(SigHandler * handler) {
 	sigset_t block_set;
 	sigemptyset(&block_set);
 	struct sigaction action, old_action;
@@ -142,8 +134,7 @@ void zmSetTermHandler(SigHandler * handler)
 	sigaction(SIGQUIT, &action, &old_action);
 }
 
-void zmSetDieHandler(SigHandler * handler)
-{
+void zmSetDieHandler(SigHandler * handler) {
 	sigset_t block_set;
 	sigemptyset(&block_set);
 	struct sigaction action, old_action;
@@ -164,19 +155,16 @@ void zmSetDieHandler(SigHandler * handler)
 	sigaction(SIGFPE, &action, &old_action);
 }
 
-void zmSetDefaultHupHandler()
-{
+void zmSetDefaultHupHandler() {
 	zmSetHupHandler((SigHandler *) zm_hup_handler);
 }
 
-void zmSetDefaultTermHandler()
-{
+void zmSetDefaultTermHandler() {
 	zmSetTermHandler((SigHandler *) zm_term_handler);
 }
 
-void zmSetDefaultDieHandler()
-{
-	if (config.dump_cores) {
+void zmSetDefaultDieHandler() {
+	if ( config.dump_cores ) {
 		// Do nothing
 	} else {
 		zmSetDieHandler((SigHandler *) zm_die_handler);

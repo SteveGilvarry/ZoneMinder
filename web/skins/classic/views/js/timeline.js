@@ -1,137 +1,213 @@
-var events = new Object();
+var events = {};
 
-function showEvent( eid, fid, width, height )
-{
-    var url = '?view=event&eid='+eid+'&fid='+fid;
-    url += filterQuery;
-    createPopup( url, 'zmEvent', 'event', width, height );
+function showEvent(e) {
+  var eid = e.getAttribute('data-event-id');
+  var fid = e.getAttribute('data-frame-id');
+  var url = '?view=event&eid='+eid+'&fid='+fid+filterQuery;
+
+  window.location.href = url;
 }
 
-function createEventHtml( event, frame )
-{
-    var eventHtml = new Element( 'div' );
+function createEventHtml(zm_event, frame) {
+  var div = $j('<div>');
 
-    if ( event.Archived > 0 )
-        eventHtml.addClass( 'archived' );
+  if ( zm_event.Archived ) div.addClass('archived');
 
-    new Element( 'p' ).inject( eventHtml ).set( 'text', monitorNames[event.MonitorId] );
-    new Element( 'p' ).inject( eventHtml ).set( 'text', event.Name+(frame?("("+frame.FrameId+")"):"") );
-    new Element( 'p' ).inject( eventHtml ).set( 'text', event.StartTime+" - "+event.Length+"s" );
-    new Element( 'p' ).inject( eventHtml ).set( 'text', event.Cause );
-    if ( event.Notes )
-        new Element( 'p' ).inject( eventHtml ).set( 'text', event.Notes );
-    if ( event.Archived > 0 )
-        new Element( 'p' ).inject( eventHtml ).set( 'text', archivedString );
+  var mName = $j('<p>').text(monitors[zm_event.MonitorId].Name);
+  var mEvent = $j('<p>').text(zm_event.Name+(frame?('('+frame.FrameId+')'):''));
+  var mDateTime = $j('<p>').text(zm_event.StartDateTime+' - '+zm_event.Length+'s');
+  var mCause = $j('<p>').text(zm_event.Cause);
+  var mNotes = zm_event.Notes ? $j('<p>').text(zm_event.Notes) : '';
+  var mArchived = zm_event.Archived ? $j('<p>').text(archivedString) : '';
 
-    return( eventHtml );
+  var data = div.append(mName, mEvent, mDateTime, mCause, mNotes, mArchived);
+
+  return data;
 }
 
-function showEventDetail( eventHtml )
-{
-    $('instruction').addClass( 'hidden' );
-    $('eventData').empty();
-    $('eventData').adopt( eventHtml );
-    $('eventData').removeClass( 'hidden' );
+function showEventDetail(eventHtml) {
+  $j('#instruction').addClass('hidden');
+  $j('#eventData').empty().append(eventHtml).removeClass('hidden');
 }
 
-function eventDataResponse( respObj, respText )
-{
-    var event = respObj.event;
-    if ( !event )
-    {
-        console.log( "Null event" );
+function eventDataResponse(respObj, respText) {
+  var zm_event = respObj.event;
+
+  if ( !zm_event ) {
+    console.log('Null event');
+    return;
+  }
+  events[zm_event.Id] = zm_event;
+
+  if ( respObj.loopback ) {
+    requestFrameData(zm_event.Id, respObj.loopback);
+  }
+}
+
+function frameDataResponse( respObj, respText ) {
+  var frame = respObj.frameimage;
+  if ( !frame.FrameId ) {
+    console.log('Null frame');
+    return;
+  }
+
+  var zm_event = events[frame.EventId];
+  if ( !zm_event ) {
+    console.error('No event '+frame.eventId+' found');
+    return;
+  }
+
+  if ( !zm_event['frames'] ) {
+    console.log('No frames data in event response');
+    console.log(zm_event);
+    console.log(respObj);
+    zm_event['frames'] = {};
+  }
+
+  zm_event['frames'][frame.FrameId] = frame;
+  zm_event['frames'][frame.FrameId]['html'] = createEventHtml( zm_event, frame );
+
+  showEventData(frame.EventId, frame.FrameId);
+}
+
+function showEventData(eventId, frameId) {
+  if ( events[eventId] ) {
+    var zm_event = events[eventId];
+    if ( zm_event['frames'] ) {
+      if ( zm_event['frames'][frameId] ) {
+        showEventDetail( zm_event['frames'][frameId]['html'] );
+        var imagePath = 'index.php?view=image&eid='+eventId+'&fid='+frameId;
+        loadEventImage(imagePath, eventId, frameId);
         return;
+      } else {
+        console.log('No frames for ' + frameId);
+      }
+    } else {
+      console.log('No frames');
     }
-    events[event.Id] = event;
-
-    if ( respObj.loopback )
-    {
-        requestFrameData( event.Id, respObj.loopback );
-    }
+  } else {
+    console.log('No event for ' + eventId);
+  }
 }
 
-function frameDataResponse( respObj, respText )
-{
-    var frame = respObj.frameimage;
-    if ( !frame.FrameId )
-    {
-        console.log( "Null frame" );
-        return;
-    }
-
-    var event = events[frame.EventId];
-    if ( !event )
-    {
-        console.error( "No event "+frame.eventId+" found" );
-        return;
-    }
-
-    if ( !event['frames'] )
-        event['frames'] = new Object();
-
-    event['frames'][frame.FrameId] = frame;
-    event['frames'][frame.FrameId]['html'] = createEventHtml( event, frame );
-    showEventDetail( event['frames'][frame.FrameId]['html'] );
-    loadEventImage( frame.Image.imagePath, event.Id, frame.FrameId, event.Width, event.Height );
+function eventQuery(data) {
+  $j.getJSON(thisUrl + '?view=request&request=status&entity=event', data)
+      .done(eventDataResponse)
+      .fail(logAjaxFail);
 }
 
-var eventQuery = new Request.JSON( { url: thisUrl, method: 'get', timeout: AJAX_TIMEOUT, link: 'cancel', onSuccess: eventDataResponse } );
-var frameQuery = new Request.JSON( { url: thisUrl, method: 'get', timeout: AJAX_TIMEOUT, link: 'cancel', onSuccess: frameDataResponse } );
-
-function requestFrameData( eventId, frameId )
-{
-    if ( !events[eventId] )
-    {
-        eventQuery.options.data = "view=request&request=status&entity=event&id="+eventId+"&loopback="+frameId;
-        eventQuery.send();
-    }
-    else
-    {
-        frameQuery.options.data = "view=request&request=status&entity=frameimage&id[0]="+eventId+"&id[1]="+frameId;
-        frameQuery.send();
-    }
+function frameQuery(data) {
+  $j.getJSON(thisUrl + '?view=request&request=status&entity=frameimage', data)
+      .done(frameDataResponse)
+      .fail(logAjaxFail);
 }
 
-function previewEvent( eventId, frameId )
-{
-    if ( events[eventId] )
-    {
-        if ( events[eventId]['frames'] )
-        {
-            if ( events[eventId]['frames'][frameId] )
-            {
-                showEventDetail( events[eventId]['frames'][frameId]['html'] );
-                loadEventImage( events[eventId].frames[frameId].Image.imagePath, eventId, frameId, events[eventId].Width, events[eventId].Height );
-                return;
-            }
-        }
-    }
-    requestFrameData( eventId, frameId );
+function requestFrameData( eventId, frameId ) {
+  var data = {};
+
+  if ( !events[eventId] ) {
+    data.id = eventId;
+    data.loopback = frameId;
+    eventQuery(data);
+  } else {
+    data.id = [eventId, frameId];
+    frameQuery(data);
+  }
 }
 
-function loadEventImage( imagePath, eid, fid, width, height )
-{
-    var imageSrc = $('imageSrc');
-    imageSrc.setProperty( 'src', imagePrefix+imagePath );
-    imageSrc.removeEvent( 'click' );
-    imageSrc.addEvent( 'click', showEvent.pass( [ eid, fid, width, height ] ) );
-    var eventData = $('eventData');
-    eventData.removeEvent( 'click' );
-    eventData.addEvent( 'click', showEvent.pass( [ eid, fid, width, height ] ) );
+function previewEvent(slot) {
+  eventId = slot.getAttribute('data-event-id');
+  frameId = slot.getAttribute('data-frame-id');
+  if ( events[eventId] && events[eventId]['frames'] && events[eventId]['frames'][frameId] ) {
+    showEventData(eventId, frameId);
+  } else {
+    requestFrameData(eventId, frameId);
+  }
 }
 
-function tlZoomBounds( minTime, maxTime )
-{
-    console.log( "Zooming" );
-    window.location = '?view='+currentView+filterQuery+'&minTime='+minTime+'&maxTime='+maxTime;
+function loadEventImage( imagePath, eid, fid ) {
+  var eventData = $j('#eventData');
+  var imageSrc = $j('#imageSrc');
+
+  imageSrc.show();
+  imageSrc.attr('src', imagePath);
+  imageSrc.attr('data-event-id', eid);
+  imageSrc.attr('data-frame-id', fid);
+  imageSrc.off('click');
+  imageSrc.click(function() {
+    showEvent(this);
+  });
+
+  eventData.attr('data-event-id', eid);
+  eventData.attr('data-frame-id', fid);
+  eventData.off('click');
+  eventData.click(function() {
+    showEvent(this);
+  });
 }
 
-function tlZoomRange( midTime, range )
-{
-    window.location = '?view='+currentView+filterQuery+'&midTime='+midTime+'&range='+range;
+function tlZoomBounds(event) {
+  var target = event.target;
+  var minTime = target.getAttribute('data-zoom-min-time');
+  var maxTime = target.getAttribute('data-zoom-max-time');
+  location.replace('?view='+currentView+filterQuery+'&minTime='+minTime+'&maxTime='+maxTime);
 }
 
-function tlPan( midTime, range )
-{
-    window.location = '?view='+currentView+filterQuery+'&midTime='+midTime+'&range='+range;
+function tlZoomOut() {
+  location.replace('?view='+currentView+filterQuery+'&midTime='+midTime+'&range='+zoomout_range);
 }
+
+function tlPanLeft() {
+  location.replace('?view='+currentView+filterQuery+'&midTime='+minTime+'&range='+range);
+}
+function tlPanRight() {
+  location.replace('?view='+currentView+filterQuery+'&midTime='+maxTime+'&range='+range);
+}
+
+function divDataOnClick() {
+  // These look like the code in skin.js, but that code doesn't select for divs.
+  document.querySelectorAll('div.event').forEach(function(el) {
+    el.onclick = window[el.getAttribute('data-on-click-this')].bind(el, el);
+    el.onmouseover = window[el.getAttribute('data-on-mouseover-this')].bind(el, el);
+  });
+  document.querySelectorAll('div.activity').forEach(function(el) {
+    el.onclick = window[el.getAttribute('data-on-click-this')].bind(el, el);
+    el.onmouseover = window[el.getAttribute('data-on-mouseover-this')].bind(el, el);
+  });
+  document.querySelectorAll('div.tlzoom').forEach(function(el) {
+    el.onclick = function(ev) {
+      window[el.getAttribute('data-on-click')](ev);
+    };
+  });
+}
+
+function initPage() {
+  var backBtn = $j('#backBtn');
+
+  // Don't enable the back button if there is no previous zm page to go back to
+  backBtn.prop('disabled', !document.referrer.length);
+
+  // Manage the BACK button
+  document.getElementById("backBtn").addEventListener("click", function onBackClick(evt) {
+    evt.preventDefault();
+    window.history.back();
+  });
+
+  // Manage the REFRESH Button
+  document.getElementById("refreshBtn").addEventListener("click", function onRefreshClick(evt) {
+    evt.preventDefault();
+    window.location.reload(true);
+  });
+  // Manage the LIST Button
+  document.getElementById("listBtn").addEventListener("click", function onListClick(evt) {
+    evt.preventDefault();
+    window.location.assign('?view=events'+filterQuery);
+  });
+
+  // Bind the data-on-click attributes associated with a div
+  divDataOnClick();
+}
+
+$j(document).ready(function() {
+  initPage();
+});

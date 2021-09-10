@@ -15,249 +15,113 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 //
 
-if ( !canView( 'Events' ) || (!empty($_REQUEST['execute']) && !canEdit('Events')) )
-{
-    $view = "error";
-    return;
+if ( !canView('Events') || (!empty($_REQUEST['execute']) && !canEdit('Events')) ) {
+  $view = 'error';
+  return;
 }
 
-if ( !empty($_REQUEST['execute']) )
-{
-    executeFilter( $tempFilterName );
-}
+require_once('includes/Event.php');
+require_once('includes/Filter.php');
 
-$countSql = 'SELECT count(E.Id) AS EventCount FROM Monitors AS M INNER JOIN Events AS E ON (M.Id = E.MonitorId) WHERE';
-$eventsSql = 'SELECT E.Id,E.MonitorId,M.Name AS MonitorName,M.DefaultScale,E.Name,E.Width,E.Height,E.Cause,E.Notes,E.StartTime,E.Length,E.Frames,E.AlarmFrames,E.TotScore,E.AvgScore,E.MaxScore,E.Archived FROM Monitors AS M INNER JOIN Events AS E on (M.Id = E.MonitorId) WHERE';
+$eventsSql = 'SELECT E.*,M.Name AS MonitorName,M.DefaultScale FROM Monitors AS M INNER JOIN Events AS E on (M.Id = E.MonitorId) WHERE';
 if ( $user['MonitorIds'] ) {
-	$user_monitor_ids = ' M.Id in ('.$user['MonitorIds'].')';
-	$countSql .= $user_monitor_ids;
-	$eventsSql .= $user_monitor_ids;
+  $user_monitor_ids = ' M.Id in ('.$user['MonitorIds'].')';
+  $eventsSql .= $user_monitor_ids;
 } else {
-    $countSql .= " 1";
-    $eventsSql .= " 1";
+  $eventsSql .= ' 1';
+}
+
+$filter = isset($_REQUEST['filter_id']) ? new ZM\Filter($_REQUEST['filter_id']) : new ZM\Filter();
+if ( isset($_REQUEST['filter'])) {
+  $filter->set($_REQUEST['filter']);
 }
 
 parseSort();
-parseFilter( $_REQUEST['filter'] );
-$filterQuery = $_REQUEST['filter']['query'];
 
-if ( $_REQUEST['filter']['sql'] )
-{
-    $countSql .= $_REQUEST['filter']['sql'];
-    $eventsSql .= $_REQUEST['filter']['sql'];
-}
-$eventsSql .= " ORDER BY $sortColumn $sortOrder";
+$filterQuery = $filter->querystring();
 
-if ( isset($_REQUEST['page']) )
-    $page = validInt($_REQUEST['page']);
-else
-    $page = 0;
-if ( isset($_REQUEST['limit']) )
-    $limit = validInt($_REQUEST['limit']);
-else
-    $limit = 0;
-
-$nEvents = dbFetchOne( $countSql, 'EventCount' );
-if ( !empty($limit) && $nEvents > $limit )
-{
-    $nEvents = $limit;
-}
-$pages = (int)ceil($nEvents/ZM_WEB_EVENTS_PER_PAGE);
-if ( $pages > 1 ) {
-    if ( !empty($page) ) {
-        if ( $page < 0 )
-            $page = 1;
-        if ( $page > $pages )
-            $page = $pages;
-    }
-}
-if ( !empty($page) ) {
-    $limitStart = (($page-1)*ZM_WEB_EVENTS_PER_PAGE);
-    if ( empty( $limit ) )
-    {
-        $limitAmount = ZM_WEB_EVENTS_PER_PAGE;
-    }
-    else
-    {
-        $limitLeft = $limit - $limitStart;
-        $limitAmount = ($limitLeft>ZM_WEB_EVENTS_PER_PAGE)?ZM_WEB_EVENTS_PER_PAGE:$limitLeft;
-    }
-    $eventsSql .= " limit $limitStart, $limitAmount";
-} elseif ( !empty( $limit ) ) {
-    $eventsSql .= " limit 0, ".$limit;
-}
-
-$maxWidth = 0;
-$maxHeight = 0;
-$archived = false;
-$unarchived = false;
-$events = array();
-foreach ( dbFetchAll( $eventsSql ) as $event )
-{
-    $events[] = $event;
-    $scale = max( reScale( SCALE_BASE, $event['DefaultScale'], ZM_WEB_DEFAULT_SCALE ), SCALE_BASE );
-    $eventWidth = reScale( $event['Width'], $scale );
-    $eventHeight = reScale( $event['Height'], $scale );
-    if ( $maxWidth < $eventWidth ) $maxWidth = $eventWidth;
-    if ( $maxHeight < $eventHeight ) $maxHeight = $eventHeight;
-    if ( $event['Archived'] )
-        $archived = true;
-    else
-        $unarchived = true;
-}
-
-$maxShortcuts = 5;
-$pagination = getPagination( $pages, $page, $maxShortcuts, $filterQuery.$sortQuery.'&amp;limit='.$limit );
-
-$focusWindow = true;
-
-xhtmlHeaders(__FILE__, translate('Events') );
+xhtmlHeaders(__FILE__, translate('Events'));
+getBodyTopHTML();
 
 ?>
-<body>
-  <div id="page">
-    <div id="header">
-      <div id="headerButtons">
-<?php
-if ( $pages > 1 )
-{
-    if ( !empty($page) )
-    {
-?>
-        <a href="?view=<?php echo $view ?>&amp;page=0<?php echo $filterQuery ?><?php echo $sortQuery ?>&amp;limit=<?php echo $limit ?>"><?php echo translate('ViewAll') ?></a>
-<?php
-    }
-    else
-    {
-?>
-        <a href="?view=<?php echo $view ?>&amp;page=1<?php echo $filterQuery ?><?php echo $sortQuery ?>&amp;limit=<?php echo $limit ?>"><?php echo translate('ViewPaged') ?></a>
-<?php
-    }
-}
-?>
-        <a href="#" onclick="closeWindows();"><?php echo translate('Close') ?></a>
-      </div>
-      <h2><?php echo sprintf( $CLANG['EventCount'], $nEvents, zmVlang( $VLANG['Event'], $nEvents ) ) ?></h2>
+  <?php echo getNavBarHTML() ?>
+  <div id="page" class="container-fluid p-3">
+    <!-- Toolbar button placement and styling handled by bootstrap-tables -->
+    <div id="toolbar">
+      <button id="backBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Back') ?>" disabled><i class="fa fa-arrow-left"></i></button>
+      <button id="refreshBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Refresh') ?>" ><i class="fa fa-refresh"></i></button>
+      <button id="tlineBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('ShowTimeline') ?>" ><i class="fa fa-history"></i></button>
+      <button id="filterBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Filter') ?>"><i class="fa fa-filter"></i></button>
+      <button id="viewBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('View') ?>" disabled><i class="fa fa-binoculars"></i></button>
+      <button id="archiveBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Archive') ?>" disabled><i class="fa fa-archive"></i></button>
+      <button id="unarchiveBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Unarchive') ?>" disabled><i class="fa fa-file-archive-o"></i></button>
+      <button id="editBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Edit') ?>" disabled><i class="fa fa-pencil"></i></button>
+      <button id="exportBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Export') ?>" disabled><i class="fa fa-external-link"></i></button>
+      <button id="downloadBtn" class="btn btn-normal" data-toggle="tooltip" data-placement="top" title="<?php echo translate('DownloadVideo') ?>" disabled><i class="fa fa-download"></i></button>
+      <button id="deleteBtn" class="btn btn-danger" data-toggle="tooltip" data-placement="top" title="<?php echo translate('Delete') ?>" disabled><i class="fa fa-trash"></i></button>
     </div>
-    <div id="content">
-      <form name="contentForm" id="contentForm" method="post" action="">
-        <input type="hidden" name="view" value="<?php echo $view ?>"/>
-        <input type="hidden" name="action" value=""/>
-        <input type="hidden" name="page" value="<?php echo $page ?>"/>
-        <?php echo $_REQUEST['filter']['fields'] ?>
-        <input type="hidden" name="sort_field" value="<?php echo validHtmlStr($_REQUEST['sort_field']) ?>"/>
-        <input type="hidden" name="sort_asc" value="<?php echo validHtmlStr($_REQUEST['sort_asc']) ?>"/>
-        <input type="hidden" name="limit" value="<?php echo $limit ?>"/>
-<?php
-if ( $pagination )
-{
-?>
-        <h3 class="pagination"><?php echo $pagination ?></h3>
-<?php
-}
-?>
-        <p id="controls">
-          <a id="refreshLink" href="#" onclick="location.reload(true);"><?php echo translate('Refresh') ?></a>
-          <a id="filterLink" href="#" onclick="createPopup( '?view=filter&amp;page=<?php echo $page ?><?php echo $filterQuery ?>', 'zmFilter', 'filter' );"><?php echo translate('ShowFilterWindow') ?></a>
-          <a id="timelineLink" href="#" onclick="createPopup( '?view=timeline<?php echo $filterQuery ?>', 'zmTimeline', 'timeline' );"><?php echo translate('ShowTimeline') ?></a>
-        </p>
-        <table id="contentTable" class="major" cellspacing="0">
+
+    <!-- Table styling handled by bootstrap-tables -->
+    <div class="row justify-content-center table-responsive-sm">
+      <table
+        id="eventTable"
+        data-locale="<?php echo i18n() ?>"
+        data-side-pagination="server"
+        data-ajax="ajaxRequest"
+        data-pagination="true"
+        data-show-pagination-switch="true"
+        data-page-list="[10, 25, 50, 100, 200, All]"
+        data-search="true"
+        data-cookie="true"
+        data-cookie-id-table="zmEventsTable"
+        data-cookie-expire="2y"
+        data-click-to-select="true"
+        data-remember-order="true"
+        data-show-columns="true"
+        data-show-export="true"
+        data-uncheckAll="true"
+        data-toolbar="#toolbar"
+        data-show-fullscreen="true"
+        data-click-to-select="true"
+        data-maintain-meta-data="true"
+        data-buttons-class="btn btn-normal"
+        data-show-jump-to="true"
+        data-show-refresh="true"
+        class="table-sm table-borderless"
+        style="display:none;"
+      >
+        <thead>
+            <!-- Row styling is handled by bootstrap-tables -->
+            <tr>
+              <th data-sortable="false" data-field="toggleCheck" data-checkbox="true"></th>
+              <th data-sortable="true" data-field="Id"><?php echo translate('Id') ?></th>
+              <th data-sortable="true" data-field="Name"><?php echo translate('Name') ?></th>
+              <th data-sortable="true" data-field="Archived"><?php echo translate('Archived') ?></th>
+              <th data-sortable="true" data-field="Emailed"><?php echo translate('Emailed') ?></th>
+              <th data-sortable="true" data-field="Monitor"><?php echo translate('Monitor') ?></th>
+              <th data-sortable="true" data-field="Cause" data-click-to-select="false"><?php echo translate('Cause') ?></th>
+              <th data-sortable="true" data-field="StartDateTime"><?php echo translate('AttrStartTime') ?></th>
+              <th data-sortable="true" data-field="EndDateTime"><?php echo translate('AttrEndTime') ?></th>
+              <th data-sortable="true" data-field="Length"><?php echo translate('Duration') ?></th>
+              <th data-sortable="true" data-field="Frames"><?php echo translate('Frames') ?></th>
+              <th data-sortable="true" data-field="AlarmFrames"><?php echo translate('AlarmBrFrames') ?></th>
+              <th data-sortable="true" data-field="TotScore"><?php echo translate('TotalBrScore') ?></th>
+              <th data-sortable="true" data-field="AvgScore"><?php echo translate('AvgBrScore') ?></th>
+              <th data-sortable="true" data-field="MaxScore"><?php echo translate('MaxBrScore') ?></th>
+              <th data-sortable="false" data-field="Storage"><?php echo translate('Storage') ?></th>
+              <th data-sortable="true" data-field="DiskSpace"><?php echo translate('DiskSpace') ?></th>
+              <th data-sortable="false" data-field="Thumbnail"><?php echo translate('Thumbnail') ?></th>
+            </tr>
+          </thead>
+
           <tbody>
-<?php
-$count = 0;
-foreach ( $events as $event )
-{
-    if ( ($count++%ZM_WEB_EVENTS_PER_PAGE) == 0 )
-    {
-?>
-            <tr>
-              <th class="colId"><a href="<?php echo sortHeader( 'Id' ) ?>"><?php echo translate('Id') ?><?php echo sortTag( 'Id' ) ?></a></th>
-              <th class="colName"><a href="<?php echo sortHeader( 'Name' ) ?>"><?php echo translate('Name') ?><?php echo sortTag( 'Name' ) ?></a></th>
-              <th class="colMonitor"><a href="<?php echo sortHeader( 'MonitorName' ) ?>"><?php echo translate('Monitor') ?><?php echo sortTag( 'MonitorName' ) ?></a></th>
-              <th class="colCause"><a href="<?php echo sortHeader( 'Cause' ) ?>"><?php echo translate('Cause') ?><?php echo sortTag( 'Cause' ) ?></a></th>
-              <th class="colTime"><a href="<?php echo sortHeader( 'StartTime' ) ?>"><?php echo translate('Time') ?><?php echo sortTag( 'StartTime' ) ?></a></th>
-              <th class="colDuration"><a href="<?php echo sortHeader( 'Length' ) ?>"><?php echo translate('Duration') ?><?php echo sortTag( 'Length' ) ?></a></th>
-              <th class="colFrames"><a href="<?php echo sortHeader( 'Frames' ) ?>"><?php echo translate('Frames') ?><?php echo sortTag( 'Frames' ) ?></a></th>
-              <th class="colAlarmFrames"><a href="<?php echo sortHeader( 'AlarmFrames' ) ?>"><?php echo translate('AlarmBrFrames') ?><?php echo sortTag( 'AlarmFrames' ) ?></a></th>
-              <th class="colTotScore"><a href="<?php echo sortHeader( 'TotScore' ) ?>"><?php echo translate('TotalBrScore') ?><?php echo sortTag( 'TotScore' ) ?></a></th>
-              <th class="colAvgScore"><a href="<?php echo sortHeader( 'AvgScore' ) ?>"><?php echo translate('AvgBrScore') ?><?php echo sortTag( 'AvgScore' ) ?></a></th>
-              <th class="colMaxScore"><a href="<?php echo sortHeader( 'MaxScore' ) ?>"><?php echo translate('MaxBrScore') ?><?php echo sortTag( 'MaxScore' ) ?></a></th>
-<?php
-        if ( ZM_WEB_LIST_THUMBS )
-        {
-?>
-              <th class="colThumbnail"><?php echo translate('Thumbnail') ?></th>
-<?php
-        }
-?>
-              <th class="colMark"><input type="checkbox" name="toggleCheck" value="1" onclick="toggleCheckbox( this, 'markEids' );"<?php if ( !canEdit( 'Events' ) ) { ?> disabled="disabled"<?php } ?>/></th>
-            </tr>
-<?php
-    }
-        $scale = max( reScale( SCALE_BASE, $event['DefaultScale'], ZM_WEB_DEFAULT_SCALE ), SCALE_BASE );
-?>
-            <tr>
-              <td class="colId"><?php echo makePopupLink( '?view=event&amp;eid='.$event['Id'].$filterQuery.$sortQuery.'&amp;page=1', 'zmEvent', array( 'event', reScale( $event['Width'], $scale ), reScale( $event['Height'], $scale ) ), $event['Id'].($event['Archived']?'*':'') ) ?></td>
-              <td class="colName"><?php echo makePopupLink( '?view=event&amp;eid='.$event['Id'].$filterQuery.$sortQuery.'&amp;page=1', 'zmEvent', array( 'event', reScale( $event['Width'], $event['DefaultScale'], ZM_WEB_DEFAULT_SCALE ), reScale( $event['Height'], $event['DefaultScale'], ZM_WEB_DEFAULT_SCALE ) ), validHtmlStr($event['Name']).($event['Archived']?'*':'' ) ) ?></td>
-              <td class="colMonitorName"><?php echo $event['MonitorName'] ?></td>
-              <td class="colCause"><?php echo makePopupLink( '?view=eventdetail&amp;eid='.$event['Id'], 'zmEventDetail', 'eventdetail', validHtmlStr($event['Cause']), canEdit( 'Events' ), 'title="'.htmlspecialchars($event['Notes']).'"' ) ?></td>
-              <td class="colTime"><?php echo strftime( STRF_FMT_DATETIME_SHORTER, strtotime($event['StartTime']) ) ?></td>
-              <td class="colDuration"><?php echo gmdate("H:i:s", $event['Length'] ) ?></td>
-              <td class="colFrames"><?php echo makePopupLink( '?view=frames&amp;eid='.$event['Id'], 'zmFrames', 'frames', $event['Frames'] ) ?></td>
-              <td class="colAlarmFrames"><?php echo makePopupLink( '?view=frames&amp;eid='.$event['Id'], 'zmFrames', 'frames', $event['AlarmFrames'] ) ?></td>
-              <td class="colTotScore"><?php echo $event['TotScore'] ?></td>
-              <td class="colAvgScore"><?php echo $event['AvgScore'] ?></td>
-              <td class="colMaxScore"><?php echo makePopupLink( '?view=frame&amp;eid='.$event['Id'].'&amp;fid=0', 'zmImage', array( 'image', reScale( $event['Width'], $scale ), reScale( $event['Height'], $scale ) ), $event['MaxScore'] ) ?></td>
-<?php
-    if ( ZM_WEB_LIST_THUMBS )
-    {
-        if ( $thumbData = createListThumbnail( $event ) )
-        {
-?>
-              <td class="colThumbnail"><?php echo makePopupLink( '?view=frame&amp;eid='.$event['Id'].'&amp;fid='.$thumbData['FrameId'], 'zmImage', array( 'image', reScale( $event['Width'], $scale ), reScale( $event['Height'], $scale ) ), '<img src="'.viewImagePath( $thumbData['Path'] ).'" width="'.$thumbData['Width'].'" height="'.$thumbData['Height'].'" alt="'.$thumbData['FrameId'].'/'.$event['MaxScore'].'"/>' ) ?></td>
-<?php
-        }
-        else
-        {
-?>
-              <td class="colThumbnail">&nbsp;</td>
-<?php
-        }
-    }
-?>
-              <td class="colMark"><input type="checkbox" name="markEids[]" value="<?php echo $event['Id'] ?>" onclick="configureButton( this, 'markEids' );"<?php if ( !canEdit( 'Events' ) ) { ?> disabled="disabled"<?php } ?>/></td>
-            </tr>
-<?php
-}
-?>
+          <!-- Row data populated via Ajax -->
           </tbody>
+
         </table>
-<?php
-if ( $pagination )
-{
-?>
-        <h3 class="pagination"><?php echo $pagination ?></h3>
-<?php
-}
-if ( true || canEdit( 'Events' ) )
-{
-?>
-        <div id="contentButtons">
-          <input type="button" name="viewBtn" value="<?php echo translate('View') ?>" onclick="viewEvents( this, 'markEids' );" disabled="disabled"/>
-          <input type="button" name="archiveBtn" value="<?php echo translate('Archive') ?>" onclick="archiveEvents( this, 'markEids' )" disabled="disabled"/>
-          <input type="button" name="unarchiveBtn" value="<?php echo translate('Unarchive') ?>" onclick="unarchiveEvents( this, 'markEids' );" disabled="disabled"/>
-          <input type="button" name="editBtn" value="<?php echo translate('Edit') ?>" onclick="editEvents( this, 'markEids' )" disabled="disabled"/>
-          <input type="button" name="exportBtn" value="<?php echo translate('Export') ?>" onclick="exportEvents( this, 'markEids' )" disabled="disabled"/>
-          <input type="button" name="deleteBtn" value="<?php echo translate('Delete') ?>" onclick="deleteEvents( this, 'markEids' );" disabled="disabled"/>
-        </div>
-<?php
-}
-?>
-      </form>
-    </div>
+      </div>       
   </div>
-</body>
-</html>
+<?php xhtmlFooter() ?>

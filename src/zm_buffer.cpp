@@ -14,68 +14,80 @@
  * 
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */ 
 
-#include <string.h>
-#include <fcntl.h>
-
-#include "zm.h"
 #include "zm_buffer.h"
 
-unsigned int Buffer::assign( const unsigned char *pStorage, unsigned int pSize )
-{
-    if ( mAllocation < pSize )
-    {
-        delete[] mStorage;
-        mAllocation = pSize;
-        mHead = mStorage = new unsigned char[pSize];
+#include <unistd.h>
+
+unsigned int Buffer::assign(const unsigned char *pStorage, unsigned int pSize) {
+  if ( mAllocation < pSize ) {
+    delete[] mStorage;
+    mAllocation = pSize;
+    mHead = mStorage = new unsigned char[pSize];
+  }
+  mSize = pSize;
+  memcpy(mStorage, pStorage, mSize);
+  mHead = mStorage;
+  mTail = mHead + mSize;
+  return mSize;
+}
+
+unsigned int Buffer::expand(unsigned int count) {
+  int spare = mAllocation - mSize;
+  int headSpace = mHead - mStorage;
+  int tailSpace = spare - headSpace;
+  int width = mTail - mHead;
+  if ( spare >= static_cast<int>(count) ) {
+    // There is enough space in the allocation might need to shift everything over though
+    //
+    if ( tailSpace < static_cast<int>(count) ) {
+      // if there is extra space at the head, shift everything over
+      memmove(mStorage, mHead, mSize);
+      mHead = mStorage;
+      mTail = mHead + width;
     }
-    mSize = pSize;
-    memcpy( mStorage, pStorage, mSize );
+  } else {
+    mAllocation += count;
+    unsigned char *newStorage = new unsigned char[mAllocation];
+    if ( mStorage ) {
+      memcpy(newStorage, mHead, mSize);
+      delete[] mStorage;
+    }
+    mStorage = newStorage;
     mHead = mStorage;
-    mTail = mHead + mSize;
-    return( mSize );
+    mTail = mHead + width;
+  }
+  return mSize;
 }
 
-unsigned int Buffer::expand( unsigned int count )
-{
-    int spare = mAllocation - mSize;
-    int headSpace = mHead - mStorage;
-    int tailSpace = spare - headSpace;
-    int width = mTail - mHead;
-    if ( spare > (int)count )
-    {
-        if ( tailSpace < (int)count )
-        {
-            memmove( mStorage, mHead, mSize );
-            mHead = mStorage;
-            mTail = mHead + width;
-        }
-    }
-    else
-    {
-        mAllocation += count;
-        unsigned char *newStorage = new unsigned char[mAllocation];
-        if ( mStorage )
-        {
-            memcpy( newStorage, mHead, mSize );
-            delete[] mStorage;
-        }
-        mStorage = newStorage;
-        mHead = mStorage;
-        mTail = mHead + width;
-    }
-    return( mSize );
+int Buffer::read_into(int sd, unsigned int bytes) {
+  // Make sure there is enough space
+  this->expand(bytes);
+  Debug(3, "Reading %u btes", bytes);
+  int bytes_read = ::read(sd, mTail, bytes);
+  if (bytes_read > 0) {
+    mTail += bytes_read;
+    mSize += bytes_read;
+  }
+  return bytes_read;
 }
 
-int Buffer::read_into( int sd, unsigned int bytes ) {
-    // Make sure there is enough space
-    this->expand(bytes);
-    int bytes_read = read( sd, mTail, bytes );
-    if ( bytes_read > 0 ) {
-        mTail += bytes_read;
-        mSize += bytes_read;
-    }
-    return bytes_read;
+int Buffer::read_into(int sd, unsigned int bytes, Microseconds timeout) {
+  fd_set set;
+  FD_ZERO(&set); /* clear the set */
+  FD_SET(sd, &set); /* add our file descriptor to the set */
+  timeval timeout_tv = zm::chrono::duration_cast<timeval>(timeout);
+
+  int rv = select(sd + 1, &set, nullptr, nullptr, &timeout_tv);
+  if (rv == -1) {
+    Error("Error %d %s from select", errno, strerror(errno));
+    return rv;
+  } else if (rv == 0) {
+    Debug(1, "timeout"); /* a timeout occured */
+    return 0;
+  }
+
+  return read_into(sd, bytes);
 }

@@ -16,7 +16,6 @@ Version: 1.27.0
 Release: 1%{?dist}
 Summary: A camera monitoring and analysis tool
 Group: System Environment/Daemons
-# jscalendar is LGPL (any version): http://www.dynarch.com/projects/calendar/
 # Mootools is under the MIT license: http://mootools.net/
 License: GPLv2+ and LGPLv2+ and MIT
 URL: http://www.zoneminder.com/
@@ -28,7 +27,7 @@ Source: ZoneMinder-%{version}.tar.gz
 
 BuildRequires: cmake polkit-devel
 BuildRequires: perl-DBI perl-DBD-mysql perl-Date-Manip perl-Sys-Mmap 
-BuildRequires: libjpeg62 libjpeg62-devel libmysqld-devel libSDL-devel libgcrypt-devel libgnutls-devel
+BuildRequires: libjpeg62 libjpeg62-devel libmysqld-devel libSDL-devel libgnutls-devel
 BuildRequires: libffmpeg-devel x264
 BuildRequires: pcre-devel w32codec-all  
 
@@ -141,7 +140,7 @@ fi
 
 %files
 %defattr(-,root,root,-)
-%doc AUTHORS COPYING README.md distros/opensuse/README.OpenSuse distros/opensuse/jscalendar-doc
+%doc AUTHORS COPYING README.md distros/opensuse/README.OpenSuse
 %docdir /opt/zoneminder/share/man
 %config %attr(640,root,%{zmgid_final}) /etc/zm.conf
 %config(noreplace) %attr(644,root,root) /etc/apache2/conf.d/zoneminder.conf

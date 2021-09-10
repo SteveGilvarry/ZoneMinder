@@ -14,107 +14,94 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 // 
-
-#include "zm.h"
-
-#if HAVE_LIBAVFORMAT
 
 #include "zm_rtp_data.h"
 
+#include "zm_config.h"
 #include "zm_rtsp.h"
+#include "zm_signal.h"
 
-#include <arpa/inet.h>
-
-RtpDataThread::RtpDataThread( RtspThread &rtspThread, RtpSource &rtpSource ) : mRtspThread( rtspThread ), mRtpSource( rtpSource ), mStop( false )
+RtpDataThread::RtpDataThread(RtspThread &rtspThread, RtpSource &rtpSource) :
+  mRtspThread(rtspThread), mRtpSource(rtpSource), mTerminate(false)
 {
+  mThread = std::thread(&RtpDataThread::Run, this);
 }
 
-bool RtpDataThread::recvPacket( const unsigned char *packet, size_t packetLen )
-{
-    const RtpDataHeader *rtpHeader;
-    rtpHeader = (RtpDataHeader *)packet;
-
-    //printf( "D: " );
-    //for ( int i = 0; i < 32; i++ )
-        //printf( "%02x ", (unsigned char)packet[i] );
-    //printf( "\n" );
-
-    Debug( 5, "Ver: %d", rtpHeader->version );
-    Debug( 5, "P: %d", rtpHeader->p );
-    Debug( 5, "Pt: %d", rtpHeader->pt );
-    Debug( 5, "Mk: %d", rtpHeader->m );
-    Debug( 5, "Seq: %d", ntohs(rtpHeader->seqN) );
-    Debug( 5, "T/S: %x", ntohl(rtpHeader->timestampN) );
-    Debug( 5, "SSRC: %x", ntohl(rtpHeader->ssrcN) );
-
-    //unsigned short seq = ntohs(rtpHeader->seqN);
-    unsigned long ssrc = ntohl(rtpHeader->ssrcN);
-
-    if ( mRtpSource.getSsrc() && (ssrc != mRtpSource.getSsrc()) )
-    {
-         Warning( "Discarding packet for unrecognised ssrc %lx", ssrc );
-         return( false );
-    }
-
-    return( mRtpSource.handlePacket( packet, packetLen ) );
+RtpDataThread::~RtpDataThread() {
+  Stop();
+  if (mThread.joinable())
+    mThread.join();
 }
 
-int RtpDataThread::run()
-{
-    Debug( 2, "Starting data thread %d on port %d", mRtpSource.getSsrc(), mRtpSource.getLocalDataPort() );
+bool RtpDataThread::recvPacket(const unsigned char *packet, size_t packetLen) {
+  const RtpDataHeader *rtpHeader;
+  rtpHeader = (RtpDataHeader *)packet;
 
-    SockAddrInet localAddr;
-    UdpInetServer rtpDataSocket;
-    if ( mRtpSource.getLocalHost() != "" )
-        localAddr.resolve( mRtpSource.getLocalHost().c_str(), mRtpSource.getLocalDataPort(), "udp" );
-    else
-        localAddr.resolve( mRtpSource.getLocalDataPort(), "udp" );
-    if ( !rtpDataSocket.bind( localAddr ) )
-        Fatal( "Failed to bind RTP server" );
-    Debug( 3, "Bound to %s:%d",  mRtpSource.getLocalHost().c_str(), mRtpSource.getLocalDataPort() );
+  Debug(5, "Ver: %d P: %d Pt: %d Mk: %d Seq: %d T/S: %x SSRC: %x",
+      rtpHeader->version,
+      rtpHeader->p,
+      rtpHeader->pt,
+      rtpHeader->m,
+      ntohs(rtpHeader->seqN),
+      ntohl(rtpHeader->timestampN),
+      ntohl(rtpHeader->ssrcN));
 
-    Select select( 3 );
-    select.addReader( &rtpDataSocket );
+  //unsigned short seq = ntohs(rtpHeader->seqN);
+  unsigned long ssrc = ntohl(rtpHeader->ssrcN);
 
-    unsigned char buffer[ZM_NETWORK_BUFSIZ];
-    while ( !mStop && select.wait() >= 0 )
-    {
-         if ( mStop )
-            break;
-         Select::CommsList readable = select.getReadable();
-         if ( readable.size() == 0 )
-         {
-             Error( "RTP timed out" );
-             mStop = true;
-             break;
+  if ( mRtpSource.getSsrc() && (ssrc != mRtpSource.getSsrc()) ) {
+     Warning("Discarding packet for unrecognised ssrc %lx", ssrc);
+     return false;
+  }
+
+  return mRtpSource.handlePacket(packet, packetLen);
+}
+
+void RtpDataThread::Run() {
+  Debug(2, "Starting data thread %d on port %d",
+      mRtpSource.getSsrc(), mRtpSource.getLocalDataPort());
+
+  zm::SockAddrInet localAddr;
+  zm::UdpInetServer rtpDataSocket;
+  if ( mRtpSource.getLocalHost() != "" ) {
+    if ( !rtpDataSocket.bind(mRtpSource.getLocalHost().c_str(), mRtpSource.getLocalDataPort()) )
+      Fatal("Failed to bind RTP server");
+  } else {
+    if ( !rtpDataSocket.bind(
+          mRtspThread.getAddressFamily() == AF_INET6 ? "::" : "0.0.0.0",
+          mRtpSource.getLocalDataPort() ) )
+      Fatal("Failed to bind RTP server");
+  }
+  Debug(3, "Bound to %s:%d",  mRtpSource.getLocalHost().c_str(), mRtpSource.getLocalDataPort());
+
+  zm::Select select(Seconds(3));
+  select.addReader(&rtpDataSocket);
+
+  unsigned char buffer[ZM_NETWORK_BUFSIZ];
+  while ( !zm_terminate && !mTerminate && (select.wait() >= 0) ) {
+    zm::Select::CommsList readable = select.getReadable();
+     if ( readable.size() == 0 ) {
+       Error("RTP timed out");
+       Stop();
+       break;
+     }
+     for (zm::Select::CommsList::iterator iter = readable.begin(); iter != readable.end(); ++iter ) {
+       if ( zm::UdpInetServer *socket = dynamic_cast<zm::UdpInetServer *>(*iter) ) {
+         int nBytes = socket->recv(buffer, sizeof(buffer));
+         Debug(4, "Got %d bytes on sd %d", nBytes, socket->getReadDesc());
+         if ( nBytes ) {
+           recvPacket(buffer, nBytes);
+         } else {
+          Stop();
+          break;
          }
-         for ( Select::CommsList::iterator iter = readable.begin(); iter != readable.end(); iter++ )
-         {
-             if ( UdpInetServer *socket = dynamic_cast<UdpInetServer *>(*iter) )
-             {
-                 int nBytes = socket->recv( buffer, sizeof(buffer) );
-                 Debug( 4, "Got %d bytes on sd %d", nBytes, socket->getReadDesc() );
-                 if ( nBytes )
-                 {
-                      recvPacket( buffer, nBytes );
-                 }
-                 else
-                 {
-                    mStop = true;
-                    break;
-                 }
-             }
-             else
-             {
-                 Panic( "Barfed" );
-             }
-         }
-    }
-    rtpDataSocket.close();
-    mRtspThread.stop();
-    return( 0 );
+       } else {
+         Panic("Barfed");
+       }
+     }  // end foreach commsList
+  }
+  rtpDataSocket.close();
+  mRtspThread.Stop();
 }
-
-#endif // HAVE_LIBAVFORMAT

@@ -14,38 +14,44 @@
 // 
 // You should have received a copy of the GNU General Public License
 // along with this program; if not, write to the Free Software
-// Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+// Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 // 
 
 #ifndef ZM_FILE_CAMERA_H
 #define ZM_FILE_CAMERA_H
 
 #include "zm_camera.h"
-#include "zm_buffer.h"
-#include "zm_regexp.h"
-
-#include <sys/param.h>
 
 //
 // Class representing 'file' cameras, i.e. those which are
 // accessed using a single file which contains the latest jpeg data
 //
-class FileCamera : public Camera
-{
-protected:
-	char path[PATH_MAX];
+class FileCamera : public Camera {
+ public:
+  FileCamera(const Monitor *monitor,
+             const char *p_path,
+             int p_width,
+             int p_height,
+             int p_colours,
+             int p_brightness,
+             int p_contrast,
+             int p_hue,
+             int p_colour,
+             bool p_capture,
+             bool p_record_audio);
+  ~FileCamera() override;
 
-public:
-	FileCamera( int p_id, const char *p_path, int p_width, int p_height, int p_colours, int p_brightness, int p_contrast, int p_hue, int p_colour, bool p_capture );
-	~FileCamera();
+  void Initialise();
+  void Terminate();
+  int PreCapture() override;
+  int Capture(std::shared_ptr<ZMPacket> &p) override;
+  int PostCapture() override;
+  int Close() override { return 0; };
 
-	const char *Path() const { return( path ); }
+  const std::string &Path() const { return path; }
 
-	void Initialise();
-	void Terminate();
-	int PreCapture();
-	int Capture( Image &image );
-	int PostCapture();
+ private:
+  std::string path;
 };
 
 #endif // ZM_FILE_CAMERA_H

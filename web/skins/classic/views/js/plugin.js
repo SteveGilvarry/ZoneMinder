@@ -78,14 +78,12 @@ function updateAddBtn( name )
     }
 }
 
-function validateForm( form )
-{
-    return( true );
+function validateForm( form ) {
+    return ( true );
 }
 
-function submitForm( form )
-{
-    form.submit();
+function submitForm( form ) {
+  form.submit();
 }
 
 function saveChanges( element )
@@ -175,32 +173,16 @@ function applyChanges()
     }
 }
 
-function limitRange( field, minValue, maxValue )
-{
-    var intval;
-    if ( +field.value === parseInt( field.value ) )
-    {
-        intval = parseInt( field.value );
-    }
-    else
-    {
-        alert( onlyIntegerString );
-        field.value = field.defaultValue;
-        return;
-    }
-    if ( intval < parseInt( minValue ) )
-    {
-        field.value = minValue;
-    }
-    else if ( intval > parseInt( maxValue ) )
-    {
-        field.value = maxValue;
-    }
+function limitRange( field, minValue, maxValue ) {
+  if ( parseInt(field.value) < parseInt(minValue) ) {
+    field.value = minValue;
+  } else if ( parseInt(field.value) > parseInt(maxValue) ) {
+    field.value = maxValue;
+  }
 }
 
-function initPage()
-{
-   return( true );
+function initPage() {
+  return ( true );
 }
 
-window.addEvent( 'domready', initPage );
+window.addEventListener( 'DOMContentLoaded', initPage );
