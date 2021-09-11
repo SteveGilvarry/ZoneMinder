@@ -215,7 +215,7 @@ void Zone::SetConfig( zConf zone_conf )
         if (!sMessage.empty()) {
             sMessage += ")";
         }
-        Info("Post processing enabled for zone '%s' %s", label, sMessage.c_str());
+        Info("Post processing enabled for zone '%s' %s", label.c_str(), sMessage.c_str());
     }
 }
 

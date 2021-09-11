@@ -27,8 +27,6 @@
 #include <string>
 #include <unistd.h>
 
-StaticConfig staticConfig;
-
 bool ValidateAccess(User *user, int mon_id) {
   bool allowed = true;
 

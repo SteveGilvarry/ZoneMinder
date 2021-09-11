@@ -3809,14 +3809,14 @@ our @options = (
     type        => $types{string},
     category    => 'config',
   },
-    {
+  {
         name        => "ZM_PATH_PLUGINS",
         default     => "@ZM_PLUGINSPKGLIBDIR@",
         description => "Path to the plugin folder",
         help        => "3d-party plugins have to be placed here.",
         type        => $types{abs_path},
         category    => "paths",
-    },
+  },
     {
         name        => "ZM_PLUGIN_EXTENSION",
         default     => "@ZM_PLUGINSEXT@",
@@ -3834,14 +3834,6 @@ our @options = (
         category    => "paths",
     },
     {
-        name        => "ZM_PLUGINS_CONFIG_DIR",
-        default     => "@ZM_PLUGINSCONFDIR@",
-        description => "Path to the config folder for plugins.",
-        help        => "Path to the config folder for plugins.",
-        type        => $types{abs_path},
-        category    => "paths",
-    },
-    {
         name        => "ZM_LOAD_PLUGINS",
         default     => "no",
         description => "Load and use 3d-party plugins",
@@ -3852,12 +3844,10 @@ our @options = (
     {
         name        => "ZM_TURNOFF_NATIVE_ANALYSIS",
         default     => "no",
-        description => "Turn native ZM\'s image analysis possibility off",
-        help        => qqq("
-            Image analysis with ZM\'s motion detected function will be turned
+        description => "Turn native ZMs image analysis possibility off",
+        help        => q`Image analysis with ZMs motion detected function will be turned
             off. Only detection functions from loaded plugins will be used.
-            Note, that if no plugins have be loaded, no detection will be done.
-        "),
+            Note, that if no plugins have be loaded, no detection will be done.`,
         type        => $types{boolean},
         category    => "config",
     },

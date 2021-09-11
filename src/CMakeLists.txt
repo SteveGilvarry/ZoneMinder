@@ -106,21 +106,21 @@ add_executable(zmc zmc.cpp)
 add_executable(zms zms.cpp)
 add_executable(zmu zmu.cpp)
 
-target_link_libraries(zmc -ldl
+target_link_libraries(zmc
   PRIVATE
     zm-core-interface
     zm
     ${ZM_EXTRA_LIBS}
     ${CMAKE_DL_LIBS})
 
-target_link_libraries(zms -ldl
+target_link_libraries(zms
   PRIVATE
     zm-core-interface
     zm
     ${ZM_EXTRA_LIBS}
     ${CMAKE_DL_LIBS})
 
-target_link_libraries(zmu -ldl
+target_link_libraries(zmu
   PRIVATE
     zm-core-interface
     zm
@@ -152,5 +152,5 @@ endif()
 if(ZM_PLUGIN_SUPPORT)
 	install(FILES jinclude.h zm_db.h zm_detector.h zm_logger.h zm_poly.h zm_mem_utils.h zm_box.h zm_ffmpeg.h zm_plugin_manager.h zm_plugin.h zm_jpeg.h zm_mpeg.h zm_image_analyser.h zm_zone.h zm_rgb.h zm_utils.h zm_event.h zm_stream.h zm_coord.h zm_image.h DESTINATION include/zoneminder)
 	install(FILES "${CMAKE_CURRENT_BINARY_DIR}/zm_config.h" "${CMAKE_CURRENT_BINARY_DIR}/zm_config_defines.h" DESTINATION include/zoneminder)
-	install(TARGETS zoneminder ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+	install(TARGETS zm ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 endif(ZM_PLUGIN_SUPPORT)

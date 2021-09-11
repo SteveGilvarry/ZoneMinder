@@ -84,16 +84,6 @@ std::string load_monitor_sql =
 "`FPSReportInterval`, `RefBlendPerc`, `AlarmRefBlendPerc`, `TrackMotion`, `Exif`,"
 "`RTSPServer`, `RTSPStreamName`,"
 "`SignalCheckPoints`, `SignalCheckColour`, `Importance`-2 FROM `Monitors`";
-//=============================================================================
-std::vector<std::string> split(const std::string &s, char delim) {
-    std::vector<std::string> elems;
-    std::stringstream ss(s);
-    std::string item;
-    while(std::getline(ss, item, delim)) {
-        elems.push_back(trimSpaces(item));
-    }
-    return elems;
-}
 
 #if ZM_PLUGINS_ON
 int conf_select(const struct direct *entry)
@@ -719,12 +709,12 @@ void Monitor::Load(MYSQL_ROW dbrow, bool load_zones=true, Purpose p = QUERY) {
                     std::string(config.plugins_config_path),
                     (!config.turnoff_native_analysis && iDoNativeMotDet));
             struct direct **files;
-            int count = scandir(config.plugins_config_dir, &files, conf_select, alphasort);
+            int count = scandir(config.plugins_config_path, &files, conf_select, alphasort);
             if (count > 0)
-                Info("Load plugin configuration files from directory %s ... ", config.plugins_config_dir);
+                Info("Load plugin configuration files from directory %s ... ", config.plugins_config_path);
             for (int i = 0; i < count; ++i)
                 ThePluginManager.configurePlugins(
-                        join_paths(config.plugins_config_dir, files[i]->d_name),
+                        join_paths(config.plugins_config_path, files[i]->d_name),
                         (!config.turnoff_native_analysis && iDoNativeMotDet));
         }
     }
@@ -1921,53 +1911,64 @@ bool Monitor::Analyse() {
 
         if (Active() and (function == MODECT or function == MOCORD)) {
           Debug(3, "signal and active and modect");
-          Event::StringSet zoneSet;
 
-          int motion_score = last_motion_score;
+#if ZM_PLUGINS_ON
+            if ((config.turnoff_native_analysis and !config.load_plugins) or (!config.turnoff_native_analysis and (iDoNativeMotDet or (!iDoNativeMotDet and !config.load_plugins))))
+#else //ZM_PLUGINS_ON
+            if (!config.turnoff_native_analysis && iDoNativeMotDet)
+#endif //ZM_PLUGINS_ON
+            {
+                Event::StringSet zoneSet;
+                int motion_score = last_motion_score;
 
-          if (analysis_fps_limit) {
-            double capture_fps = get_capture_fps();
-            motion_frame_skip = capture_fps / analysis_fps_limit;
-            Debug(1, "Recalculating motion_frame_skip (%d) = capture_fps(%f) / analysis_fps(%f)",
-                motion_frame_skip, capture_fps, analysis_fps_limit);
-          }
-
-          if (!(analysis_image_count % (motion_frame_skip+1))) {
-            if (snap->image) {
-              // decoder may not have been able to provide an image
-              if (!ref_image.Buffer()) {
-                Debug(1, "Assigning instead of Dectecting");
-                ref_image.Assign(*(snap->image));
-              } else {
-                Debug(1, "Detecting motion on image %d, image %p", snap->image_index, snap->image);
-                // Get new score.
-                motion_score = DetectMotion(*(snap->image), zoneSet);
-
-                snap->zone_stats.reserve(zones.size());
-                for (const Zone &zone : zones) {
-                  const ZoneStats &stats = zone.GetStats();
-                  stats.DumpToLog("After detect motion");
-                  snap->zone_stats.push_back(stats);
+                if (analysis_fps_limit) {
+                    double capture_fps = get_capture_fps();
+                    motion_frame_skip = capture_fps / analysis_fps_limit;
+                    Debug(1, "Recalculating motion_frame_skip (%d) = capture_fps(%f) / analysis_fps(%f)",
+                          motion_frame_skip, capture_fps, analysis_fps_limit);
                 }
 
-                Debug(3, "After motion detection, score:%d last_motion_score(%d), new motion score(%d)",
-                    score, last_motion_score, motion_score);
-                motion_frame_count += 1;
-                // Why are we updating the last_motion_score too?
-                last_motion_score = motion_score;
-              }
-            } else {
-              Debug(1, "no image so skipping motion detection");
-            }  // end if has image
-          } else {
-            Debug(1, "Skipped motion detection last motion score was %d", motion_score);
-          }
-          if (motion_score) {
-            score += motion_score;
-            if (cause.length()) cause += ", ";
-            cause += MOTION_CAUSE;
-            noteSetMap[MOTION_CAUSE] = zoneSet;
-          } // end if motion_score
+                if (!(analysis_image_count % (motion_frame_skip+1))) {
+                    if (snap->image) {
+                        // decoder may not have been able to provide an image
+                        if (!ref_image.Buffer()) {
+                            Debug(1, "Assigning instead of Detecting");
+                            ref_image.Assign(*(snap->image));
+                        } else {
+                            Debug(1, "Detecting motion on image %d, image %p", snap->image_index, snap->image);
+                            // Get new score.
+                            motion_score = DetectMotion(*(snap->image), zoneSet,motion_score);
+
+                            snap->zone_stats.reserve(zones.size());
+                            for (const Zone &zone : zones) {
+                                const ZoneStats &stats = zone.GetStats();
+                                stats.DumpToLog("After detect motion");
+                                snap->zone_stats.push_back(stats);
+                            }
+
+                            Debug(3, "After motion detection, score:%d last_motion_score(%d), new motion score(%d)",
+                                  score, last_motion_score, motion_score);
+                            motion_frame_count += 1;
+                            // Why are we updating the last_motion_score too?
+                            last_motion_score = motion_score;
+                        }
+                    } else {
+                        Debug(1, "no image so skipping motion detection");
+                    }  // end if has image
+                } else {
+                    Debug(1, "Skipped motion detection last motion score was %d", motion_score);
+                }
+                if (motion_score) {
+                    score += motion_score;
+                    if (cause.length()) cause += ", ";
+                    cause += MOTION_CAUSE;
+                    noteSetMap[MOTION_CAUSE] = zoneSet;
+                } // end if motion_score
+            }
+
+
+
+
         } else {
           Debug(1, "Not Active(%d) enabled %d active %d doing motion detection: %d",
               Active(), enabled, shared_data->active,
@@ -2824,9 +2825,9 @@ void Monitor::closeEvent() {
   if (shared_data) video_store_data->recording = {};
 } // end bool Monitor::closeEvent()
 
-unsigned int Monitor::DetectMotion(const Image &comp_image, Event::StringSet &zoneSet) {
+unsigned int Monitor::DetectMotion(const Image &comp_image, Event::StringSet &zoneSet, int &score) {
   bool alarm = false;
-  unsigned int score = 0;
+  score = 0;
 
   if (zones.empty()) {
     Warning("No zones to check!");

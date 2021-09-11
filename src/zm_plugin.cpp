@@ -105,7 +105,7 @@ void Plugin::registerPlugin(PluginManager &K)
 {
     int pluginEngineVersion = m_pfnGetEngineVersion();
 
-    if(pluginEngineVersion == ZM_ENGINE_VERSION)
+    if(reinterpret_cast<const char *>(pluginEngineVersion) == ZM_ENGINE_VERSION)
         m_pfnRegisterPlugin(K, m_sPluginFileName);
     else
     {

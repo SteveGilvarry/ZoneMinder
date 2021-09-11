@@ -7,6 +7,7 @@
 #include <string>
 #include <stdexcept>
 #include <memory>
+#include <fstream>
 
 #include "zm.h"
 #include "zm_image.h"
@@ -63,7 +64,7 @@ class ImageAnalyser {
   ImageAnalyser& operator=(const ImageAnalyser& source);
 
     //! Adds new plugin's detector to the list of detectors.
-    void addDetector(std::auto_ptr<Detector> Det)
+    void addDetector(std::unique_ptr<Detector> Det)
     {
         m_Detectors.push_back(Det.release());
     }
@@ -72,7 +73,7 @@ class ImageAnalyser {
     void onCloseEvent(Zone** zones, Event* event);
 
     //! Do detection in an image by calling all available detectors.
-    bool DoDetection(const Image &comp_image, Zone** zones, Event::StringSetMap& noteSetMap, std::string& det_cause, unsigned int& score);
+    int DoDetection(const Image &comp_image, Zone** zones, int n_numZones, Event::StringSetMap noteSetMap, std::string& det_cause);
 
     //! Configure all loaded plugins using given configuration file.
     void configurePlugins(std::string sConfigFileName, bool bDoNativeDet = 0);

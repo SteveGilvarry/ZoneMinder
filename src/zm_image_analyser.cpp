@@ -41,7 +41,7 @@ ImageAnalyser::~ImageAnalyser()
  * \param det_cause is a string describing detection cause
  * \param score is the plugin score
  */
-int ImageAnalyser::DoDetection(const Image &comp_image, Zone** zones, int n_numZones, Event::StringSetMap noteSetMap, std::string& det_cause, unsigned int& score)
+int ImageAnalyser::DoDetection(const Image &comp_image, Zone** zones, int n_numZones, Event::StringSetMap noteSetMap, std::string& det_cause)
 {
   Event::StringSet zoneSet;
   int score = 0;

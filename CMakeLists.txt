@@ -8,7 +8,7 @@ file(STRINGS "version" zoneminder_VERSION)
 # make API version a minor of ZM version
 set(zoneminder_API_VERSION "${zoneminder_VERSION}.1")
 # Engine version is used for external plugin compilation
-set(ZM_ENGINE_VERSION 37)
+set(ZM_ENGINE_VERSION "${zoneminder_VERSION}")
 
 # Make sure the submodules are there
 if(NOT EXISTS "${CMAKE_SOURCE_DIR}/web/api/app/Plugin/Crud/Lib/CrudControllerTrait.php")
@@ -76,7 +76,7 @@ include(CheckSendfile)
 include (GNUInstallDirs)
 include (CheckIncludeFile)
 include (CheckIncludeFileCXX)
-include (CheckPrototypeDefinition_fixed)
+include (CheckPrototypeDefinition)
 include (CheckStructHasMember)
 include (FindPkgConfig)
 

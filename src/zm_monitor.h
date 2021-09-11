@@ -596,7 +596,7 @@ public:
 
   void CheckAction();
 
-  unsigned int DetectMotion( const Image &comp_image, Event::StringSet &zoneSet, unsigned int &score );
+  unsigned int DetectMotion( const Image &comp_image, Event::StringSet &zoneSet, int &score );
    // DetectBlack seems to be unused. Check it on zm_monitor.cpp for more info.
    //unsigned int DetectBlack( const Image &comp_image, Event::StringSet &zoneSet );
   bool CheckSignal( const Image *image );
