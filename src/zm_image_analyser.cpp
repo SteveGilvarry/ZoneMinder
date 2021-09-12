@@ -50,7 +50,7 @@ int ImageAnalyser::DoDetection(const Image &comp_image, Zone** zones, int n_numZ
     It != m_Detectors.end();
     ++It)
   {
-    int detect_score = (*It)->Detect(comp_image, zones, n_numZones, zoneSet);
+    int detect_score = (*It)->Detect(comp_image, zones, n_numZones);
     if (detect_score)
     {
       score += detect_score;
@@ -93,41 +93,26 @@ bool ImageAnalyser::isValidConfigFile(std::string sPluginName, std::string sConf
  */
 bool ImageAnalyser::getMonitorZones()
 {
-    static char sql[ZM_SQL_MED_BUFSIZ];
 
-    // We use the same ordering as in Monitor::Load
-    snprintf(sql, sizeof(sql), "SELECT `Id`, `Name`, `Type` FROM `Zones` WHERE `MonitorId` = %d ORDER BY `Type`, `Id`;", m_nMonitorId);
+  // We use the same ordering as in Monitor::Load
+  std::string sql = stringtf("SELECT `Id`, `Name`, `Type` FROM `Zones` WHERE `MonitorId` = %d ORDER BY `Type`, `Id`;", monitor->Id());
 
-    if (mysql_query(&dbconn, sql))
-    {
-        Error("Can't run query: %s", mysql_error(&dbconn));
-        exit(mysql_errno(&dbconn));
+  MYSQL_RES *result = zmDbFetch(sql);
+  if (!result) {
+    return {};
+  }
+
+  if (mysql_num_rows(result) > 0) {
+    for ( int i = 0; MYSQL_ROW dbrow = mysql_fetch_row(result); i++) {
+      int col = 0;
+      zSetting zone;
+      zone.id = atoi(dbrow[col++]);
+      zone.name = std::string(dbrow[col++]);
+      zone.type = std::string(dbrow[col++]);
+      m_vMonitorZones.push_back(zone);
     }
-
-    MYSQL_RES *result = mysql_store_result(&dbconn);
-    if (!result)
-    {
-        Error("Can't use query result: %s", mysql_error(&dbconn));
-        exit(mysql_errno(&dbconn));
-    }
-
-    if (mysql_num_rows(result) > 0)
-    {
-        for (unsigned int i = 0; MYSQL_ROW dbrow = mysql_fetch_row(result); i++)
-        {
-            if (mysql_errno(&dbconn))
-            {
-                Error("Can't fetch row: %s", mysql_error(&dbconn));
-                exit(mysql_errno(&dbconn));
-            }
-            zSetting zone;
-            zone.id = (unsigned int)strtoul(dbrow[0], NULL, 0);
-            zone.name = std::string(dbrow[1]);
-            zone.type = std::string(dbrow[2]);
-            m_vMonitorZones.push_back(zone);
-        }
-    }
-    mysql_free_result(result);
+  }
+  mysql_free_result(result);
 
     return ( m_vMonitorZones.size() );
 }
@@ -297,7 +282,7 @@ bool ImageAnalyser::getZonesConfig(std::string sLoadedPlugins)
     if ( !sLoadedPlugins.length() ) return false;
 
     // Get the sorted list of zones and which have a setting enabled
-    snprintf(sql, sizeof(sql), "SELECT DISTINCT `ZoneId`, `Name` FROM `PluginsConfig` WHERE `MonitorId` = %d AND `pluginName` IN (%s) AND `Name` IN ('RequireNatDet', 'IncludeNatDet', 'ReInitNatDet') AND `Value` = 'yes' ORDER BY `ZoneId` ASC;", m_nMonitorId, sLoadedPlugins.c_str());
+    snprintf(sql, sizeof(sql), "SELECT DISTINCT `ZoneId`, `Name` FROM `PluginsConfig` WHERE `MonitorId` = %d AND `pluginName` IN (%s) AND `Name` IN ('RequireNatDet', 'IncludeNatDet', 'ReInitNatDet') AND `Value` = 'yes' ORDER BY `ZoneId` ASC;", monitor->id, sLoadedPlugins.c_str());
     if (mysql_query(&dbconn, sql))
     {
         Error("Can't run query: %s", mysql_error(&dbconn));

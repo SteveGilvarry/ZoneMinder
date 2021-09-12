@@ -94,7 +94,7 @@ void Detector::log(int nLogLevel, std::string sLevel, std::string sMessage)
  *  \param score is the detection score
  *  \return true if detection is effective
  */
-bool Detector::Detect(const Image &zmImage, Zone** zones, unsigned int &score)
+bool Detector::Detect(const Image &zmImage, Zone** zones, int &score)
 {
     bool alarm = false;
     char szMessage[100];

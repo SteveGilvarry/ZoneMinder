@@ -75,7 +75,7 @@ public:
     Detector& operator=(const Detector& source);
 
     //! Detect (in an image later)
-    bool Detect(const Image &image, Zone** zones, unsigned int &score);
+    bool Detect(const Image &image, Zone** zones, int &score);
 
     void _onCreateEvent(Zone** zones, Event *event);
     void _onCloseEvent(Zone** zones, Event *event);

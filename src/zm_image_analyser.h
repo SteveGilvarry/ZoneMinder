@@ -10,6 +10,7 @@
 #include <fstream>
 
 #include "zm.h"
+#include "zm_monitor.h"
 #include "zm_image.h"
 #include "zm_zone.h"
 #include "zm_event.h"
@@ -111,7 +112,7 @@ class ImageAnalyser {
     DetectorsList m_Detectors;
 
     //! The monitor id
-    int m_nMonitorId;
+    Monitor *monitor;
 
     //! Native detection is enabled
     bool m_bIsNativeDetEnabled;
