@@ -38,12 +38,12 @@ jobs:
           DIST: ${{ matrix.os_dist.dist }}
         run: utils/packpack/startpackpack.sh
 
-      - name: Publish
-        uses: easingthemes/ssh-deploy@main
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.ZMREPO_SSH_KEY }}
-          ARGS: "-rltgoDzvO"
-          SOURCE: build/
-          REMOTE_HOST: ${{ secrets.ZMREPO_HOST }}
-          REMOTE_USER: ${{ secrets.ZMREPO_SSH_USER }}
-          TARGET: debian/master/mini-dinstall/incoming/
+#      - name: Publish
+#        uses: easingthemes/ssh-deploy@main
+#        env:
+#          SSH_PRIVATE_KEY: ${{ secrets.ZMREPO_SSH_KEY }}
+#          ARGS: "-rltgoDzvO"
+#          SOURCE: build/
+#          REMOTE_HOST: ${{ secrets.ZMREPO_HOST }}
+#          REMOTE_USER: ${{ secrets.ZMREPO_SSH_USER }}
+#          TARGET: debian/master/mini-dinstall/incoming/
