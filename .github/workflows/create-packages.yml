@@ -24,6 +24,16 @@ jobs:
             dist: focal
           - os: ubuntu
             dist: jammy
+          - os: el
+            dist: 8
+          - os: el
+            dist: 9
+          - os: fedora
+            dist: 36
+          - os: fedora
+            dist: 37
+          - os: fedora
+            dist: 38
     runs-on: ubuntu-latest
 
     steps:
