@@ -33,11 +33,12 @@ jobs:
             echo "Processing submodule $name -> $dest"
             mkdir -p "$dest"
             git archive --format=tar HEAD | tar -x -C "$dest"
+            echo "Contents of $dest:"
+            find "$dest" || echo "No files found"
           '
 
           echo "Creating final tarball..."
           tar -czf "${ARCHIVE_NAME}-full.tar.gz" -C build "$ARCHIVE_NAME"
-
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
