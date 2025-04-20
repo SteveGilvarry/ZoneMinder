@@ -18,9 +18,18 @@ jobs:
 
       - name: Create archive with submodules
         run: |
-          mkdir build
+          mkdir -p build
+
+          # Archive the main repo
           git archive --format=tar --prefix=zoneminder-${{ github.ref_name }}/ HEAD | tar -x -C build
-          git submodule foreach --recursive 'git archive --format=tar --prefix=zoneminder-${{ github.ref_name }}/$path/ HEAD | tar -x -C build -f -'
+
+          # Archive all submodules properly
+          git submodule foreach --recursive '
+            mkdir -p build/zoneminder-${{ github.ref_name }}/$path &&
+            git archive --format=tar HEAD | tar -x -C build/zoneminder-${{ github.ref_name }}/$path
+          '
+
+          # Create compressed tarball
           tar -czf zoneminder-${{ github.ref_name }}-full.tar.gz -C build .
 
       - name: Upload release asset
