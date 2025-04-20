@@ -29,6 +29,9 @@ jobs:
 
           echo "Archiving submodules..."
           git submodule foreach --recursive '
+            echo "DEBUG: pwd=$(pwd), path=$path, name=$name"
+            echo "DEBUG: files in HEAD of $name:"
+            git ls-tree -r HEAD
             dest="../../build/'"$ARCHIVE_NAME"'/$path"
             echo "Processing submodule $name -> $dest"
             mkdir -p "$dest"
