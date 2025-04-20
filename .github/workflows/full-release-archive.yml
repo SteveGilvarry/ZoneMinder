@@ -25,10 +25,11 @@ jobs:
 
           # Archive all submodules properly
           git submodule foreach --recursive '
-            mkdir -p build/zoneminder-${{ github.ref_name }}/$path &&
-            git archive --format=tar HEAD | tar -x -C build/zoneminder-${{ github.ref_name }}/$path
+            dest=build/zoneminder-${{ github.ref_name }}/$path
+            mkdir -p "$dest"
+            git archive --format=tar HEAD | tar -x -C "$dest"
           '
-
+          
           # Create compressed tarball
           tar -czf zoneminder-${{ github.ref_name }}-full.tar.gz -C build .
 
