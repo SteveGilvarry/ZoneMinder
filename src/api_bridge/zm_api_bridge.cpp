@@ -19,7 +19,6 @@
 
 #include "zm_api_bridge.h"
 
-#include "zm_monitor_list.h"
 #include "zm_monitor.h"
 #include "zm_stats.h"
 #include "zm_logger.h"
