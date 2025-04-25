@@ -20,7 +20,6 @@
 #include "zm_api_bridge.h"
 
 #include "zm_monitor.h"
-#include "zm_stats.h"
 #include "zm_logger.h"
 #include "zm_event.h"
 #include "zm_config.h"
@@ -106,11 +105,12 @@ int zm_get_monitor_stats(uint32_t id, ZmMonitorStats *o)
 }
 
 void zm_get_core_stats(ZmCoreStats *o)
+/* To do get stats */
 {
-    o->disk_pct      = zm::stats::DiskPercent();
-    o->shm_pct       = zm::stats::ShmPercent();
-    o->db_ms         = zm::stats::DbLatencyMs();
-    o->cpu_load_x10  = zm::stats::CpuLoadx10();
+    o->disk_pct      = 0;
+    o->shm_pct       = 0;
+    o->db_ms         = 0;
+    o->cpu_load_x10  = 0;
 }
 
 /* async event bus */
