@@ -2,7 +2,7 @@
 
 # Create files from the .in files
 configure_file(zm_config_data.h.in "${CMAKE_BINARY_DIR}/zm_config_data.h" @ONLY)
-add_subdirectory(src/api_bridge)
+add_subdirectory(api_bridge)
 
 # Group together all the source files that are used by all the binaries (zmc, zmu, zms etc)
 set(ZM_BIN_SRC_FILES
