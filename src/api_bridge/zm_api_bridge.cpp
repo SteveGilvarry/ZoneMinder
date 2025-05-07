@@ -30,52 +30,131 @@
 /* helpers */
 static std::shared_ptr<Monitor> find_mon(uint32_t id)
 {
-    return Monitor::Map().count(id) ? Monitor::Map()[id] : nullptr;
+    return Monitor::Load(id, 0, Monitor::QUERY);
 }
-#define CHECK_MON(id, ret) \
+#define MON_OR_RET(id, ret) \
     auto mon = find_mon(id); \
     if(!mon){ Warning("zmbridge: monitor %u not found", id); return ret; }
 
-void *zm_alloc(size_t n){ return std::malloc(n); }
-void  zm_free(void *p)  { std::free(p); }
-
-/* ─── alarm ───────────────────────────────────────────── */
-int zm_force_alarm(uint32_t id,uint32_t dur){
-    CHECK_MON(id,-1); mon->ForceAlarmOn(dur); return 0;
+/* ─────────── 1. monitor ──────── */
+int zm_monitor_start(uint32_t id){ 
+    MON_OR_RET(id,-1);
+    
+    // Store previous state
+    bool was_enabled = mon->Enabled();
+    
+    // Perform action (returns void)
+    mon->actionEnable();
+    
+    // Allow time for state change to take effect
+    sleep(1);
+    
+    // Re-load the monitor to get updated state
+    auto updated_mon = find_mon(id);
+    if (!updated_mon) {
+        Error("Failed to reload monitor %u after enabling", id);
+        return -1;
+    }
+    
+    // Check if the state changed as expected
+    return updated_mon->Enabled() ? 0 : -1; 
 }
-int zm_clear_alarm(uint32_t id){
-    CHECK_MON(id,-1); mon->ForceAlarmOff();   return 0;
+
+int zm_monitor_stop(uint32_t id){ 
+    MON_OR_RET(id,-1);
+    
+    // Store previous state
+    bool was_enabled = mon->Enabled();
+    
+    // Perform action (returns void)
+    mon->actionDisable();
+    
+    // Allow time for state change to take effect
+    sleep(1);
+    
+    // Re-load the monitor to get updated state
+    auto updated_mon = find_mon(id);
+    if (!updated_mon) {
+        Error("Failed to reload monitor %u after disabling", id);
+        return -1;
+    }
+    
+    // Check if the state changed as expected
+    return !updated_mon->Enabled() ? 0 : -1;
+}
+
+int zm_monitor_reload(uint32_t id){ 
+    MON_OR_RET(id,-1);
+    
+    // Perform action (returns void)
+    mon->actionReload();
+    
+    // Allow time for reload to take effect
+    sleep(1);
+    
+    // Re-load the monitor to verify it's still available
+    auto updated_mon = find_mon(id);
+    if (!updated_mon) {
+        Error("Failed to reload monitor %u after reload action", id);
+        return -1;
+    }
+    
+    return 0; // If we can still load the monitor, consider it a success
+}
+
+/* ─────────── 2. alarm ───────── */
+int zm_force_alarm(uint32_t id, uint32_t d) {
+    MON_OR_RET(id,-1);
+    mon->ForceAlarmOn(d, "API Bridge", nullptr);
+    return 0;
+}
+
+int zm_clear_alarm(uint32_t id) {
+    MON_OR_RET(id,-1);
+    mon->ForceAlarmOff();
+    return 0;
 }
 
 /* ─── snapshot ────────────────────────────────────────── */
-uint8_t *zm_get_jpeg_snapshot(uint32_t id,size_t *len){
-    CHECK_MON(id,nullptr);
-    Image img = mon->GetCurrentJpeg();
-    *len = img.size;
-    uint8_t *mem=(uint8_t*)std::malloc(img.size);
-    std::memcpy(mem,img.data,img.size);
+uint8_t *zm_get_jpeg_snapshot(uint32_t id, size_t *len) {
+    MON_OR_RET(id, nullptr);
+    if (!mon->connect()) {
+        Error("Can't connect to capture daemon: %d %s", mon->Id(), mon->Name());
+        return nullptr;
+    }
+    
+    ZMPacket *packet = mon->getSnapshot(-1);  // -1 means get the latest snapshot
+    if (!packet) {
+        Error("Failed to get snapshot from monitor %d", id);
+        *len = 0;
+        return nullptr;
+    }
+    
+    Image *img = packet->image;
+    if (!img || !img->Size()) {
+        Error("Invalid image in snapshot from monitor %d", id);
+        delete packet;
+        *len = 0;
+        return nullptr;
+    }
+    
+    *len = img->Size();
+    uint8_t *mem = (uint8_t*)std::malloc(*len);
+    if (!mem) {
+        Error("Failed to allocate memory for snapshot from monitor %d", id);
+        delete packet;
+        *len = 0;
+        return nullptr;
+    }
+    
+    std::memcpy(mem, img->Buffer(), *len);
+    delete packet;  // Clean up the packet after we're done
+    
     return mem;
 }
 
 /* ─── simple state query ─────────────────────────────── */
 int zm_is_alarm(uint32_t id){
-    auto mon = find_mon(id); if(!mon) return -1;
-    return mon->GetState()==Monitor::ALARM;
-}
-
-/* ─── event + log buses ──────────────────────────────── */
-struct Sub { void*fn; void*ud; };
-static std::vector<Sub> ev,lx;
-static std::mutex mx;
-
-void zm_subscribe_events(ZmEventCb cb,void*ud){ std::lock_guard l(mx); ev.push_back({(void*)cb,ud}); }
-void zm_unsubscribe_events(ZmEventCb cb,void*ud){ std::lock_guard l(mx); ev.erase(std::remove_if(ev.begin(),ev.end(),[&](Sub&s){return s.fn==(void*)cb&&s.ud==ud;}),ev.end()); }
-void zm_emit_event_json(const std::string&j){
-    std::lock_guard l(mx); for(auto&s:ev) ((ZmEventCb)s.fn)(j.c_str(),s.ud);
-}
-
-void zm_subscribe_logs(ZmLogCb cb,void*ud){ std::lock_guard l(mx); lx.push_back({(void*)cb,ud}); }
-void zm_unsubscribe_logs(ZmLogCb cb,void*ud){ std::lock_guard l(mx); lx.erase(std::remove_if(lx.begin(),lx.end(),[&](Sub&s){return s.fn==(void*)cb&&s.ud==ud;}),lx.end()); }
-void zm_emit_log(int lvl,const char*msg){
-    std::lock_guard l(mx); for(auto&s:lx) ((ZmLogCb)s.fn)(lvl,msg,s.ud);
+    MON_OR_RET(id, -1);
+    return (mon->GetState() == Monitor::ALARM) ? 1 : 0;
 }
