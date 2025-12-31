@@ -639,53 +639,54 @@ function confirmDelete( message ) {
 window.addEventListener( 'DOMContentLoaded', checkSize );
 
 function convertLabelFormat(LabelFormat, monitorName) {
-  //convert label format from strftime to moment's format (modified from
-  //https://raw.githubusercontent.com/benjaminoakes/moment-strftime/master/lib/moment-strftime.js
+  //convert label format from strftime to Luxon's format (originally adapted from
+  //https://raw.githubusercontent.com/benjaminoakes/moment-strftime/master/lib/moment-strftime.js)
   //added %f and %N below (TODO: add %Q)
   var replacements = {
-    'a': 'ddd',
-    'A': 'dddd',
-    'b': 'MMM',
-    'B': 'MMMM',
-    'd': 'DD',
-    'e': 'D',
-    'F': 'YYYY-MM-DD',
-    'H': 'HH',
-    'I': 'hh',
-    'j': 'DDDD',
-    'k': 'H',
-    'l': 'h',
-    'm': 'MM',
-    'M': 'mm',
-    'p': 'A',
-    'r': 'hh:mm:ss A',
-    'S': 'ss',
-    'u': 'E',
-    'w': 'd',
-    'W': 'WW',
-    'y': 'YY',
-    'Y': 'YYYY',
-    'z': 'ZZ',
-    'Z': 'z',
-    'f': 'SS',
-    'N': '['+monitorName+']',
+    'a': 'ccc',        // Mon, Tue, etc (Luxon: ccc)
+    'A': 'cccc',       // Monday, Tuesday, etc (Luxon: cccc)
+    'b': 'MMM',        // Jan, Feb, etc
+    'B': 'MMMM',       // January, February, etc
+    'd': 'dd',         // Day of month 01-31 (Luxon: dd)
+    'e': 'd',          // Day of month 1-31 (Luxon: d)
+    'F': 'yyyy-MM-dd', // ISO date (Luxon: yyyy-MM-dd)
+    'H': 'HH',         // Hour 00-23
+    'I': 'hh',         // Hour 01-12
+    'j': 'ooo',        // Day of year 001-366 (Luxon: ooo)
+    'k': 'H',          // Hour 0-23
+    'l': 'h',          // Hour 1-12
+    'm': 'MM',         // Month 01-12
+    'M': 'mm',         // Minute 00-59
+    'p': 'a',          // AM/PM (Luxon: a)
+    'r': 'hh:mm:ss a', // 12-hour time
+    'S': 'ss',         // Second 00-59
+    'u': 'c',          // Day of week 1-7 (Luxon: c)
+    'w': 'c',          // Day of week (Luxon: c, 1=Monday)
+    'W': 'WW',         // Week number
+    'y': 'yy',         // Year 2-digit (Luxon: yy)
+    'Y': 'yyyy',       // Year 4-digit (Luxon: yyyy)
+    'z': 'ZZZ',        // Timezone offset (Luxon: ZZZ)
+    'Z': 'z',          // Timezone abbreviation
+    'f': 'SS',         // Milliseconds (first 2 digits)
+    'N': "'"+monitorName+"'", // Literal text in Luxon uses single quotes
     '%': '%'};
-  var momentLabelFormat = Object.keys(replacements).reduce(function(momentFormat, key) {
+  var luxonLabelFormat = Object.keys(replacements).reduce(function(luxonFormat, key) {
     var value = replacements[key];
-    return momentFormat.replace('%' + key, value);
+    return luxonFormat.replace('%' + key, value);
   }, LabelFormat);
-  return momentLabelFormat;
+  return luxonLabelFormat;
 }
 
 function addVideoTimingTrack(video, LabelFormat, monitorName, duration, startTime) {
 //This is a hacky way to handle changing the texttrack. If we ever upgrade vjs in a revamp replace this.  Old method preserved because it's the right way.
   var cues = vid.textTracks()[0].cues();
   var labelFormat = convertLabelFormat(LabelFormat, monitorName);
-  startTime = moment(startTime);
+  // startTime is in 'YYYY-MM-DD HH:mm:ss' format from PHP
+  startTime = DateTime.fromSQL(startTime);
 
   for ( var i = 0; i <= duration; i++ ) {
-    cues[i] = {id: i, index: i, startTime: i, endTime: i+1, text: startTime.format(labelFormat)};
-    startTime.add(1, 's');
+    cues[i] = {id: i, index: i, startTime: i, endTime: i+1, text: startTime.toFormat(labelFormat)};
+    startTime = startTime.plus({seconds: 1});
   }
 }
 /*

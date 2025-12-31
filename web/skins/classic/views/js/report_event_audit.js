@@ -2,9 +2,9 @@ function changeDateTime(e) {
   const minTime_element = $j('#minTime');
   const maxTime_element = $j('#maxTime');
 
-  const minTime = moment(minTime_element.val());
-  const maxTime = moment(maxTime_element.val());
-  if ( minTime.isAfter(maxTime) ) {
+  const minTime = DateTime.fromISO(minTime_element.val().replace(' ', 'T'));
+  const maxTime = DateTime.fromISO(maxTime_element.val().replace(' ', 'T'));
+  if ( minTime > maxTime ) {
     maxTime_element.parent().addClass('has-error');
     return; // Don't reload because we have invalid datetime filter.
   } else {

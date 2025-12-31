@@ -826,12 +826,12 @@ function secs2inputstr(s) {
     return '';
   }
 
-  var m = moment(s*1000);
-  if ( ! m ) {
+  var dt = DateTime.fromMillis(s*1000);
+  if ( ! dt.isValid ) {
     console.log("No valid date for " + s + " seconds");
     return '';
   }
-  return m.format("YYYY-MM-DDTHH:mm:ss");
+  return dt.toFormat("yyyy-MM-dd'T'HH:mm:ss");
 }
 
 function secs2dbstr(s) {
@@ -839,12 +839,12 @@ function secs2dbstr(s) {
     console.log("Invalid value for " + s + " seconds");
     return '';
   }
-  var m = moment(s*1000);
-  if ( ! m ) {
+  var dt = DateTime.fromMillis(s*1000);
+  if ( ! dt.isValid ) {
     console.log("No valid date for " + s + " milliseconds");
     return '';
   }
-  return m.format("YYYY-MM-DD HH:mm:ss");
+  return dt.toFormat("yyyy-MM-dd HH:mm:ss");
 }
 
 function setFit(value) {

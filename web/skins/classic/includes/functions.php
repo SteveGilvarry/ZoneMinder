@@ -1616,7 +1616,6 @@ function xhtmlFooter() {
   'js/Server.js',
 ), true );
 ?>
-  <script src="skins/<?php echo $skin ?>/js/moment.min.js"></script>
   <script src="skins/<?php echo $skin ?>/js/luxon-3.4.4.min.js"></script>
 <?php
 ?>
