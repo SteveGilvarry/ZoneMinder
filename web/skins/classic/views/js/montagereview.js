@@ -32,6 +32,15 @@ var panRight;
 var downloadVideo;
 var scaleDiv;
 var fit;
+var monitorObserver = null;
+var monitorVisibility = {};
+var useMonitorVisibility = false;
+
+function isMonitorVisible(monId) {
+  if (!useMonitorVisibility) return true;
+  if (monitorVisibility[monId] === undefined) return true;
+  return monitorVisibility[monId];
+}
 
 function evaluateLoadTimes() {
   if (liveMode != 1 && currentSpeed == 0) return; // don't evaluate when we are not moving as we can do nothing really fast.
@@ -39,13 +48,17 @@ function evaluateLoadTimes() {
   // Only consider it a completed event if we load ALL monitors, then zero all and start again
   let start=0;
   let end=0;
+  let visibleCount = 0;
   for (let i = 0; i < monitorIndex.length; i++) {
     if (monitorName[i] > '') {
+      if (!isMonitorVisible(i)) continue;
+      visibleCount++;
       if ( monitorLoadEndTimems[i] == 0 ) return; // if we have a monitor with no time yet just wait
       if ( start == 0 || start > monitorLoadStartTimems[i] ) start = monitorLoadStartTimems[i];
       if ( end == 0 || end < monitorLoadEndTimems[i] ) end = monitorLoadEndTimems[i];
     }
   }
+  if (visibleCount === 0) return;
   if ( start == 0 || end == 0 ) return; // we really should not get here
   for (let i=0; i < numMonitors; i++) {
     const monId = monitorPtr[i];
@@ -463,6 +476,29 @@ function loadImage2Monitor(monId, url) {
   }
 }
 
+function setupMonitorVisibility() {
+  if (!('IntersectionObserver' in window)) {
+    return;
+  }
+  useMonitorVisibility = true;
+  const root = document.getElementById('monitors');
+  monitorObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      const monId = entry.target.getAttribute('monitor_id');
+      if (!monId) return;
+      monitorVisibility[monId] = entry.isIntersecting;
+    });
+  }, {root: root, rootMargin: '200px 0px', threshold: 0.01});
+
+  for (let i = 0; i < numMonitors; i++) {
+    const monId = monitorPtr[i];
+    const canvas = monitorCanvasObj[monId];
+    if (!canvas) continue;
+    monitorVisibility[monId] = true;
+    monitorObserver.observe(canvas);
+  }
+}
+
 function timerFire() {
   // See if we need to reschedule
   if ( ( currentDisplayInterval != timerInterval ) || ( currentSpeed == 0 ) ) {
@@ -736,6 +772,7 @@ function redrawScreen() {
   }
 
   var monitors = $j('#monitors');
+  monitors.toggleClass('fit-mode', fitMode == 1);
   if (fitMode == 1) {
     var fps = $j('#fps');
     var vh = window.innerHeight;
@@ -766,8 +803,10 @@ function redrawScreen() {
 function outputUpdate(time) {
   if (Object.keys(events).length !== 0) {
     for ( let i=0; i < numMonitors; i++ ) {
-      const src = getImageSource(monitorPtr[i], time);
-      loadImage2Monitor(monitorPtr[i], src);
+      const monId = monitorPtr[i];
+      if (!isMonitorVisible(monId)) continue;
+      const src = getImageSource(monId, time);
+      loadImage2Monitor(monId, src);
     }
   }
   currentTimeSecs = time;
@@ -880,6 +919,9 @@ function setSpeed(speed_index) {
   }
   currentSpeed = parseFloat(speeds[speed_index]);
   speedIndex = speed_index;
+  if (speed_index > 0) {
+    lastSpeedIndex = speed_index;
+  }
   playSecsPerInterval = Math.floor( 1000 * currentSpeed * currentDisplayInterval ) / 1000000;
   setCookie('speed', speedIndex);
   showSpeed(speed_index);
@@ -895,6 +937,91 @@ function setLive(value) {
   form.elements['live'].value = value;
   form.submit();
   return false;
+}
+
+function togglePlayPause() {
+  if (liveMode == 1) return;
+  if (speedIndex === 0) {
+    const nextIndex = lastSpeedIndex > 0 ? lastSpeedIndex : 5;
+    setSpeed(nextIndex);
+  } else {
+    lastSpeedIndex = speedIndex;
+    setSpeed(0);
+  }
+}
+
+function shouldIgnoreShortcut(event) {
+  if (event.defaultPrevented) return true;
+  if (event.ctrlKey || event.altKey || event.metaKey) return true;
+  const target = event.target;
+  if (!target) return false;
+  const tagName = target.tagName ? target.tagName.toLowerCase() : '';
+  if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || tagName === 'button') return true;
+  if (target.isContentEditable) return true;
+  return false;
+}
+
+function handleShortcuts(event) {
+  if (shouldIgnoreShortcut(event)) return;
+  switch (event.key) {
+    case ' ':
+      event.preventDefault();
+      togglePlayPause();
+      break;
+    case 'l':
+    case 'L':
+      event.preventDefault();
+      setLive(1 - liveMode);
+      break;
+    case 'f':
+    case 'F':
+      event.preventDefault();
+      setFit(1 - fitMode);
+      break;
+    case '+':
+    case '=':
+      event.preventDefault();
+      click_zoomin();
+      break;
+    case '-':
+    case '_':
+      event.preventDefault();
+      click_zoomout();
+      break;
+    case '[':
+      event.preventDefault();
+      click_panleft();
+      break;
+    case ']':
+      event.preventDefault();
+      click_panright();
+      break;
+    case '1':
+      event.preventDefault();
+      click_lastHour();
+      break;
+    case '2':
+      event.preventDefault();
+      click_lastEight();
+      break;
+    case '3':
+      event.preventDefault();
+      click_last24();
+      break;
+    case '0':
+      event.preventDefault();
+      click_all_events();
+      break;
+    case 't':
+    case 'T': {
+      event.preventDefault();
+      const collapseButton = document.getElementById('collapse');
+      if (collapseButton) collapseButton.click();
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 
@@ -1327,6 +1454,9 @@ function initPage() {
     }
     canvasObj.addEventListener('click', clickMonitor, false);
   } // end foreach monitor
+
+  setupMonitorVisibility();
+  document.addEventListener('keydown', handleShortcuts);
 
   setSpeed(speedIndex);
   //setFit(fitMode);  // will redraw

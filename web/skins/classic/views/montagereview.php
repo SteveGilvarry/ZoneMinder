@@ -270,6 +270,29 @@ foreach ($displayMonitors as $row) {
   $monitors[] = new ZM\Monitor($row);
 }
 
+$rangeLabel = translate('All Events');
+if ($liveMode) {
+  $rangeLabel = translate('Live');
+} elseif (!empty($minTime) && !empty($maxTime)) {
+  $rangeLabel = validHtmlStr(preg_replace('/T/', ' ', $minTime)).' to '.validHtmlStr(preg_replace('/T/', ' ', $maxTime));
+}
+
+$filterChips = array();
+$attrTypes = ZM\Filter::attrTypes();
+foreach ($filter->terms() as $term) {
+  if (empty($term['attr'])) continue;
+  if ($term['attr'] == 'DateTime' || $term['attr'] == 'StartDateTime') continue;
+  $value = isset($term['val']) ? trim((string)$term['val']) : '';
+  if ($value === '') continue;
+  $label = isset($attrTypes[$term['attr']]) ? $attrTypes[$term['attr']] : $term['attr'];
+  $op = isset($term['op']) ? $term['op'] : '=';
+  $filterChips[] = array(
+    'label' => validHtmlStr($label),
+    'op' => validHtmlStr($op),
+    'value' => validHtmlStr($value),
+  );
+}
+
 xhtmlHeaders(__FILE__, translate('MontageReview') );
 getBodyTopHTML();
 ?>
@@ -278,21 +301,43 @@ getBodyTopHTML();
   <div id="content">
   <form id="montagereview_form" action="?" method="get">
     <input type="hidden" name="view" value="montagereview"/>
-    <div id="header">
+    <div id="header" class="montage-header">
+      <div class="montage-topbar">
+        <div class="montage-topbar-left">
+          <a class="flip montage-filter-toggle" href="#"
+            data-flip-control-object="#mfbpanel"
+            data-flip-сontrol-run-after-func="applyChosen drawGraph"
+            data-flip-сontrol-run-after-complet-func="changeScale">
+            <i id="mfbflip" class="material-icons md-18" data-icon-visible="filter_alt_off" data-icon-hidden="filter_alt"></i>
+          </a>
+          <div class="montage-title">
+            <span class="montage-title-text"><?php echo translate('MontageReview') ?></span>
+            <span class="montage-range"><?php echo $rangeLabel ?></span>
+          </div>
+        </div>
+        <div class="montage-topbar-right">
+          <div class="montage-filter-summary">
+            <span class="summary-label"><?php echo translate('Filters') ?></span>
+            <div class="filter-chips">
+<?php if (count($filterChips)) { ?>
+<?php foreach ($filterChips as $chip) { ?>
+              <span class="filter-chip"><?php echo $chip['label'].' '.$chip['op'].' '.$chip['value'] ?></span>
+<?php } ?>
+<?php } else { ?>
+              <span class="filter-chip filter-chip-muted"><?php echo translate('None') ?></span>
+<?php } ?>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="mfbpanel" class="hidden-shift container-fluid montage-filter-panel">
 <?php
-$html = '<a class="flip" href="#" 
-         data-flip-control-object="#mfbpanel" 
-         data-flip-сontrol-run-after-func="applyChosen drawGraph" 
-         data-flip-сontrol-run-after-complet-func="changeScale">
-           <i id="mfbflip" class="material-icons md-18" data-icon-visible="filter_alt_off" data-icon-hidden="filter_alt"></i>
-         </a>'.PHP_EOL;
-$html .= '<div id="mfbpanel" class="hidden-shift container-fluid">'.PHP_EOL;
-echo $html;
 echo $filterbar;
 if (count($filter->terms())) {
   echo $filter->simple_widget();
 }
 ?>
+      </div>
 
 <!--
         <div id="DateTimeDiv">
@@ -300,51 +345,69 @@ if (count($filter->terms())) {
           <input type="text" name="maxTime" id="maxTime" value="<?php echo preg_replace('/T/', ' ', $maxTime) ?>"/>
         </div>
 -->
-        <div id="ScaleDiv">
-          <label for="scaleslider"><?php echo translate('Scale')?></label>
-          <input id="scaleslider" type="range" min="0.1" max="1.0" value="<?php echo $defaultScale ?>" step="0.10"/>
-          <span id="scaleslideroutput"><?php echo number_format((float)$defaultScale,2,'.','')?> x</span>
+      <div class="montage-controls">
+        <div class="montage-sliders">
+          <div id="ScaleDiv" class="control-group">
+            <label for="scaleslider"><?php echo translate('Scale')?></label>
+            <input id="scaleslider" type="range" min="0.1" max="1.0" value="<?php echo $defaultScale ?>" step="0.10"/>
+            <span id="scaleslideroutput"><?php echo number_format((float)$defaultScale,2,'.','')?> x</span>
+          </div>
+          <div id="SpeedDiv" class="control-group">
+            <label for="speedslider"><?php echo translate('Speed') ?></label>
+            <input id="speedslider" type="range" min="0" max="<?php echo count($speeds)-1?>" value="<?php echo $speedIndex ?>" step="1"/>
+            <span id="speedslideroutput"><?php echo number_format((float)$speeds[$speedIndex],2,'.','')?> x</span>
+          </div>
         </div>
-        <div id="SpeedDiv">
-          <label for="speedslider"><?php echo translate('Speed') ?></label>
-          <input id="speedslider" type="range" min="0" max="<?php echo count($speeds)-1?>" value="<?php echo $speedIndex ?>" step="1"/>
-          <span id="speedslideroutput"><?php echo $speeds[$speedIndex] ?> fps</span>
-        </div>
-        <div id="ButtonsDiv">
-          <button type="button" id="panleft"   data-on-click="click_panleft"    >&lt; <?php echo translate('Pan') ?></button>
-          <button type="button" id="zoomin"    data-on-click="click_zoomin"     ><?php echo translate('In +') ?></button>
-          <button type="button" id="zoomout"   data-on-click="click_zoomout"    ><?php echo translate('Out -') ?></button>
-          <button type="button" id="lasteight" data-on-click="click_last24"     ><?php echo translate('24 Hour') ?></button>
-          <button type="button" id="lasteight" data-on-click="click_lastEight"  ><?php echo translate('8 Hour') ?></button>
-          <button type="button" id="lasthour"  data-on-click="click_lastHour"   ><?php echo translate('1 Hour') ?></button>
-          <button type="button" id="allof"     data-on-click="click_all_events" ><?php echo translate('All Events') ?></button>
-          <button type="button" id="liveButton"><?php echo translate('Live') ?></button>
-          <button type="button" id="fit"       ><?php echo translate('Fit') ?></button>
-          <button type="button" id="panright"  data-on-click="click_panright"   ><?php echo translate('Pan') ?> &gt;</button>
+        <div id="ButtonsDiv" class="montage-buttons">
+          <div class="button-group">
+            <button type="button" id="panleft" data-on-click="click_panleft">&lt; <?php echo translate('Pan') ?></button>
+            <button type="button" id="zoomin" data-on-click="click_zoomin"><?php echo translate('In +') ?></button>
+            <button type="button" id="zoomout" data-on-click="click_zoomout"><?php echo translate('Out -') ?></button>
+            <button type="button" id="panright" data-on-click="click_panright"><?php echo translate('Pan') ?> &gt;</button>
+          </div>
+          <div class="button-group">
+            <button type="button" id="last24" data-on-click="click_last24"><?php echo translate('24 Hour') ?></button>
+            <button type="button" id="last8" data-on-click="click_lastEight"><?php echo translate('8 Hour') ?></button>
+            <button type="button" id="lasthour" data-on-click="click_lastHour"><?php echo translate('1 Hour') ?></button>
+            <button type="button" id="allof" data-on-click="click_all_events"><?php echo translate('All Events') ?></button>
+          </div>
+          <div class="button-group">
+            <button type="button" id="liveButton"><?php echo translate('Live') ?></button>
+            <button type="button" id="fit"><?php echo translate('Fit') ?></button>
 <?php
   if ($liveMode) {
     if (defined('ZM_FEATURES_SNAPSHOTS') and ZM_FEATURES_SNAPSHOTS) { ?>
-          <button type="button" name="snapshotBtn" data-on-click-this="takeSnapshot">
-            <i class="material-icons md-18">camera_enhance</i>
-            &nbsp;<?php echo translate('Snapshot') ?>
-          </button>
+            <button type="button" name="snapshotBtn" data-on-click-this="takeSnapshot">
+              <i class="material-icons md-18">camera_enhance</i>
+              &nbsp;<?php echo translate('Snapshot') ?>
+            </button>
 <?php
     }
   } else if (count($displayMonitors) != 0) {
 ?>
-          <button type="button" id="downloadVideo" data-on-click="click_download"><?php echo translate('Download Video') ?></button>
+            <button type="button" id="downloadVideo" data-on-click="click_download"><?php echo translate('Download Video') ?></button>
 <?php } // end if !live ?>
-<button type="button" id="collapse" data-flip-control-object="#timelinediv" data-flip-сontrol-run-after-func="drawGraph" title="<?php echo translate('Toggle timeline visibility');?>"> <!-- OR run redrawScreen? -->
-            <i class="material-icons" data-icon-visible="history_toggle_off" data-icon-hidden="schedule"></i>
-          </button>
+            <button type="button" id="collapse" data-flip-control-object="#timelinediv" data-flip-сontrol-run-after-func="drawGraph" title="<?php echo translate('Toggle timeline visibility');?>"> <!-- OR run redrawScreen? -->
+              <i class="material-icons" data-icon-visible="history_toggle_off" data-icon-hidden="schedule"></i>
+            </button>
+          </div>
         </div>
+      </div>
+      <div class="montage-timeline">
         <div id="timelinediv" class="hidden-shift">
           <canvas id="timeline"></canvas>
           <span id="scrubleft"></span>
           <span id="scrubright"></span>
           <span id="scruboutput"></span>
         </div>
-      </div><!--flipMontageHeader-->
+        <div class="montage-shortcuts">
+          <?php echo translate('Shortcuts') ?>: Space=<?php echo translate('Play') ?>/<?php echo translate('Pause') ?>,
+          L=<?php echo translate('Live') ?>, F=<?php echo translate('Fit') ?>,
+          [=<?php echo translate('Pan') ?> <?php echo translate('Left') ?>,
+          ]=<?php echo translate('Pan') ?> <?php echo translate('Right') ?>,
+          1/2/3=<?php echo translate('Range') ?>
+        </div>
+      </div>
       <input type="hidden" name="fit" value="<?php echo $fitMode ?>"/>
       <input type="hidden" name="live" value="<?php echo $liveMode ?>"/>
     </div><!--header-->
@@ -353,7 +416,13 @@ if (count($filter->terms())) {
 <?php
   // Monitor images - these had to be loaded after the monitors used were determined (after loading events)
   foreach ( $monitors as $m ) {
-    echo '<canvas title="'.$m->Id().' '.validHtmlStr($m->Name()).'" width="'.($m->Width() * $defaultScale).'" height="'.($m->Height() * $defaultScale).'" id="Monitor'.$m->Id().'" style="border:1px solid '.$m->WebColour().'" monitor_id="'.$m->Id().'">No Canvas Support!!</canvas>
+    echo '<div class="monitor-tile" style="--monitor-color: '.validHtmlStr($m->WebColour()).'" data-id="'.$m->Id().'">
+            <div class="monitor-meta">
+              <span class="monitor-name">'.validHtmlStr($m->Name()).'</span>
+              <span class="monitor-id">#'.$m->Id().'</span>
+            </div>
+            <canvas title="'.$m->Id().' '.validHtmlStr($m->Name()).'" width="'.($m->Width() * $defaultScale).'" height="'.($m->Height() * $defaultScale).'" id="Monitor'.$m->Id().'" class="monitor-canvas" style="border:1px solid '.validHtmlStr($m->WebColour()).'" monitor_id="'.$m->Id().'">No Canvas Support!!</canvas>
+          </div>
 ';
   }
 ?>

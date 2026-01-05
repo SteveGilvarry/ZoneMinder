@@ -1,62 +1,288 @@
-#ScaleDiv,
-#SpeedDiv{
-  vertical-align: top;
-  display: inline-flex;
-  width: 25%;
-  padding: 4px;
+.montage-header {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 12px 12px;
+  background: var(--backgroundMediumDark);
+  color: #e7edf4;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
-#ScaleDiv label,
-#SpeedDiv label {
+
+.montage-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.montage-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.montage-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  color: #f7f9fb;
+}
+
+.montage-title {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  gap: 2px;
+}
+
+.montage-title-text {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.montage-range {
+  font-size: 12px;
+  color: rgba(231, 237, 244, 0.75);
+}
+
+.montage-filter-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.summary-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(231, 237, 244, 0.6);
+}
+
+.filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.35);
+  color: #f2f6fb;
+  font-size: 11px;
+}
+
+.filter-chip-muted {
+  opacity: 0.6;
+}
+
+.montage-filter-panel {
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.montage-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.montage-sliders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 200px;
+}
+
+.control-group label {
   margin: 0;
-}
-#ButtonsDiv {
-  display: inline-flex;
-  flex-flow: row-wrap;
-}
-#ButtonsDiv button {
-display: inline-flex;
-min-width: 0;
-}
-#DateTimeDiv {
-  display: inline-flex;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(231, 237, 244, 0.6);
 }
 
 #scaleslideroutput,
 #speedslideroutput {
   min-width: 75px;
   display: block;
+  font-size: 11px;
+  color: rgba(231, 237, 244, 0.85);
 }
 
-#timelinediv {
-  margin: 2px auto;
-  position:relative; 
-  width:100%;
+#ButtonsDiv {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 
-#timeline {
-  border:1px solid;
+#ButtonsDiv .button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
-#monitors {
-  position:relative;
-  width:100%;
-  height:100%;
-  overflow-y: auto;
-}
-input[type=range]::-ms-tooltip {
-    display: none;
-}
-#timeline {
-    color: white;
-  font-size: 40px;
+#ButtonsDiv button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px;
+  border-radius: 4px;
 }
 
 #downloadVideo {
-  margin-left: 5px;
+  margin-left: 0;
 }
-#minTime, #maxTime {
-margin: 0 4px;
+
+.montage-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-#monitors canvas {
-  background: black;
+
+#timelinediv {
+  margin: 0;
+  position: relative;
+  width: 100%;
+  padding: 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+#timeline {
+  display: block;
+  border: 0;
+}
+
+.montage-shortcuts {
+  font-size: 11px;
+  color: rgba(231, 237, 244, 0.6);
+  text-align: right;
+}
+
+#monitors {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background-color: #000;
+}
+
+#monitors.fit-mode {
+  padding: 0;
+  gap: 0;
+}
+
+#monitors.fit-mode .monitor-tile {
+  display: contents;
+}
+
+#monitors.fit-mode .monitor-meta {
+  display: none;
+}
+
+.monitor-tile {
+  position: relative;
+  padding: 6px;
+  border-radius: 6px;
+  background: #0b0f14;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.monitor-meta {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-left: 3px solid var(--monitor-color);
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+}
+
+.monitor-meta .monitor-id {
+  opacity: 0.7;
+}
+
+.monitor-canvas {
+  display: block;
+  background: #000;
+}
+
+#fps {
+  margin: 6px 12px;
+  font-size: 11px;
+  color: rgba(160, 174, 192, 0.9);
+  text-align: left;
+}
+
+#DateTimeDiv {
+  display: inline-flex;
+}
+
+#minTime,
+#maxTime {
+  margin: 0 4px;
+}
+
+input[type=range]::-ms-tooltip {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .montage-topbar {
+    align-items: flex-start;
+  }
+
+  .montage-shortcuts {
+    text-align: left;
+  }
+}
+
+@media (max-width: 768px) {
+  .montage-header {
+    padding: 8px;
+  }
+
+  .montage-title-text {
+    font-size: 13px;
+  }
+
+  #ButtonsDiv {
+    gap: 8px;
+  }
+
+  .monitor-tile {
+    padding: 4px;
+  }
 }
