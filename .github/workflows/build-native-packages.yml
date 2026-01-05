@@ -1,7 +1,7 @@
 name: build-native-packages-signed
 
 on:
-  push:
+  push: 
     branches: [ master ]
 permissions:
   contents: write
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
+      matrix: 
         distro: ["debian:13", "debian:12", "ubuntu:22.04", "ubuntu:24.04"]
     container:
       image: ${{ matrix.distro }}
@@ -120,7 +120,7 @@ jobs:
           name: ${{ env.artifact_name }}
       - name: Publish to ZMREPO
         uses: easingthemes/ssh-deploy@main
-        env:
+        env: 
           SSH_PRIVATE_KEY: ${{ secrets.ZMREPO_SSH_KEY }}
           ARGS: "-rltgoDzvO"
           SOURCE: artifacts/deb/
@@ -128,9 +128,133 @@ jobs:
           REMOTE_USER: ${{ secrets.ZMREPO_SSH_USER }}
           TARGET: debian/master/mini-dinstall/incoming/
 
+  build-redhat:
+    name: Build & sign .rpm (${{ matrix.distro }})
+    if: github.repository == 'ZoneMinder/zoneminder'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: ["fedora:40", "fedora:41", "rockylinux:9", "almalinux:9"]
+    container:
+      image: ${{ matrix.distro }}
+
+    steps:
+      - name: Install build tools
+        run: |
+          set -eux
+          if command -v dnf &> /dev/null; then
+            PKG_MGR=dnf
+          else
+            PKG_MGR=yum
+          fi
+          
+          $PKG_MGR install -y \
+            git ca-certificates gnupg \
+            rpm-build rpm-sign rpmdevtools rpmlint \
+            cmake gcc gcc-c++ make \
+            curl bash rsync openssh-clients \
+            ffmpeg-free-devel \
+            turbojpeg-devel \
+            mariadb-connector-c-devel \
+            polkit-devel \
+            libv4l-devel \
+            vlc-devel \
+            openssl-devel \
+            libvncserver-devel \
+            libjwt-devel \
+            gsoap-devel \
+            mosquitto-devel
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets. ZMREPO_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets. ZMREPO_GPG_PASSPHRASE }}
+          git_user_signingkey: false
+          git_commit_gpgsign: false
+
+      - name: Setup RPM build environment
+        run: |
+          set -eux
+          rpmdev-setuptree
+          
+          # Configure GPG for RPM signing
+          echo "%_signature gpg" >> ~/.rpmmacros
+          echo "%_gpg_name ${{ secrets.ZMREPO_GPG_KEY_ID }}" >> ~/.rpmmacros
+
+      - name: Build RPM
+        env:
+          GPG_TTY: /dev/console
+        run: |
+          set -eux
+          
+          # Check if there's a spec file in the repo
+          # Adjust the path according to your repository structure
+          if [ -f "distros/redhat/zoneminder.spec" ]; then
+            SPEC_FILE="distros/redhat/zoneminder.spec"
+          elif [ -f "zoneminder. spec" ]; then
+            SPEC_FILE="zoneminder. spec"
+          else
+            echo "Error: No spec file found"
+            exit 1
+          fi
+          
+          # Create source tarball
+          VERSION=$(grep '^Version:' $SPEC_FILE | awk '{print $2}')
+          git archive --format=tar.gz --prefix=zoneminder-$VERSION/ HEAD > ~/rpmbuild/SOURCES/zoneminder-$VERSION.tar.gz
+          
+          # Build the RPM
+          rpmbuild -ba $SPEC_FILE
+
+      - name: Sign RPMs
+        run: |
+          set -eux
+          export GPG_TTY=$(tty || true)
+          
+          # Sign all built RPMs
+          echo "${{ secrets.ZMREPO_GPG_PASSPHRASE }}" | \
+            rpm --addsign ~/rpmbuild/RPMS/*/*.rpm \
+            --define "_gpg_name ${{ secrets. ZMREPO_GPG_KEY_ID }}"
+
+      - name:  Collect . rpm artifacts
+        run: |
+          set -eux
+          mkdir -p artifacts/rpm
+          find ~/rpmbuild -name "*.rpm" -exec cp {} artifacts/rpm/ \;
+          
+          # Verify signatures
+          rpm --checksig artifacts/rpm/*.rpm || true
+
+      - name:  Sanitize Artifact name
+        run: |
+          sanitized_distro_name=$(echo -n "${{ matrix.distro }}" | sed -e 's/[;\\\/:<>"|*?]/_/g' -e 's/__*/_/g')
+          echo "artifact_name=binary-${sanitized_distro_name}" >> $GITHUB_ENV
+
+      - name: Upload .rpm artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          path: artifacts/rpm
+          name: ${{ env.artifact_name }}
+
+      - name: Publish to ZMREPO
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ZMREPO_SSH_KEY }}
+          ARGS: "-rltgoDzvO"
+          SOURCE: artifacts/rpm/
+          REMOTE_HOST: ${{ secrets.ZMREPO_HOST }}
+          REMOTE_USER:  ${{ secrets.ZMREPO_SSH_USER }}
+          TARGET: redhat/master/incoming/
+
   release:
     name: Create GitHub Release (on tag)
-    needs: build-debian
+    needs: [build-debian, build-redhat]
     if: github.repository == 'ZoneMinder/zoneminder' && startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
