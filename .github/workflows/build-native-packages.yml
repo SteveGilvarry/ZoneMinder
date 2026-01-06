@@ -1,8 +1,12 @@
 name: build-native-packages-signed
 
 on:
-  push: 
-    branches: [ master ]
+  push:
+    # Allow fork testing by triggering on any branch. If you want to limit, use
+    # a prefix like "build-native-packages/**" instead of "**".
+    branches:
+      - "**"
+  workflow_dispatch:
 permissions:
   contents: write
 env:
@@ -14,11 +18,13 @@ env:
   TZ: America/New_York
   DEBIAN_FRONTEND: noninteractive
   DEBSIGN_KEYID: ${{ secrets.ZMREPO_GPG_KEY_ID }}
+  # Signing is only enabled on the main repo when secrets are present. Forks
+  # will build with a throwaway key to exercise the pipeline without deploying.
+  SIGNING_ENABLED: ${{ github.repository == 'ZoneMinder/zoneminder' && secrets.ZMREPO_GPG_PRIVATE_KEY != '' }}
 
 jobs:
   build-debian:
     name: Build & sign .deb (${{ matrix.distro }})
-    if: github.repository == 'ZoneMinder/zoneminder'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -65,7 +71,26 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Generate throwaway GPG key (fork testing)
+        if: env.SIGNING_ENABLED == 'false'
+        run: |
+          set -eux
+          cat >gen-key.cfg <<'EOF'
+          %no-protection
+          Key-Type: default
+          Subkey-Type: default
+          Name-Real: GitHub CI Test Key
+          Name-Email: ci@example.com
+          Expire-Date: 2d
+          EOF
+          gpg --batch --generate-key gen-key.cfg
+          KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/ {print $5; exit}')
+          echo "GPG_KEY_ID=${KEY_ID}" >> "$GITHUB_ENV"
+          echo "DEBSIGN_KEYID=${KEY_ID}" >> "$GITHUB_ENV"
+          echo "GPG_PASSPHRASE=" >> "$GITHUB_ENV"
+
       - name: Import GPG key
+        if: env.SIGNING_ENABLED == 'true'
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets.ZMREPO_GPG_PRIVATE_KEY }}
@@ -119,6 +144,7 @@ jobs:
           path: artifacts/deb
           name: ${{ env.artifact_name }}
       - name: Publish to ZMREPO
+        if: env.SIGNING_ENABLED == 'true'
         uses: easingthemes/ssh-deploy@main
         env: 
           SSH_PRIVATE_KEY: ${{ secrets.ZMREPO_SSH_KEY }}
@@ -130,7 +156,6 @@ jobs:
 
   build-redhat:
     name: Build & sign .rpm (${{ matrix.distro }})
-    if: github.repository == 'ZoneMinder/zoneminder'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -171,7 +196,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Generate throwaway GPG key (fork testing)
+        if: env.SIGNING_ENABLED == 'false'
+        run: |
+          set -eux
+          cat >gen-key.cfg <<'EOF'
+          %no-protection
+          Key-Type: default
+          Subkey-Type: default
+          Name-Real: GitHub CI Test Key
+          Name-Email: ci@example.com
+          Expire-Date: 2d
+          EOF
+          gpg --batch --generate-key gen-key.cfg
+          KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^sec/ {print $5; exit}')
+          echo "GPG_KEY_ID=${KEY_ID}" >> "$GITHUB_ENV"
+          echo "GPG_PASSPHRASE=" >> "$GITHUB_ENV"
+
       - name: Import GPG key
+        if: env.SIGNING_ENABLED == 'true'
         uses: crazy-max/ghaction-import-gpg@v6
         with:
           gpg_private_key: ${{ secrets. ZMREPO_GPG_PRIVATE_KEY }}
@@ -213,6 +256,7 @@ jobs:
           rpmbuild -ba $SPEC_FILE
 
       - name: Sign RPMs
+        if: env.SIGNING_ENABLED == 'true'
         run: |
           set -eux
           export GPG_TTY=$(tty || true)
@@ -243,6 +287,7 @@ jobs:
           name: ${{ env.artifact_name }}
 
       - name: Publish to ZMREPO
+        if: env.SIGNING_ENABLED == 'true'
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.ZMREPO_SSH_KEY }}
