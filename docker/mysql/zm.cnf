@@ -1,0 +1,22 @@
+[mysqld]
+# ZoneMinder MySQL configuration
+
+# Increase packet size for large images
+max_allowed_packet = 64M
+
+# Increase buffer pool for better performance
+innodb_buffer_pool_size = 256M
+
+# Enable SQL mode for ZoneMinder compatibility
+sql_mode = NO_ENGINE_SUBSTITUTION
+
+# Character set
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# Logging for development
+general_log = 0
+slow_query_log = 0
+
+[client]
+default-character-set = utf8mb4

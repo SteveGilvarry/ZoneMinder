@@ -1,0 +1,157 @@
+# Multi-stage Dockerfile for ZoneMinder on ARM64 (Apple Silicon)
+# Optimized for development with hot-reloading of PHP files
+
+FROM --platform=linux/arm64 ubuntu:22.04 AS builder
+
+# Avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/New_York
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    libavcodec-dev \
+    libavdevice-dev \
+    libavfilter-dev \
+    libavformat-dev \
+    libavutil-dev \
+    libswresample-dev \
+    libswscale-dev \
+    libcurl4-gnutls-dev \
+    libgnutls28-dev \
+    libjpeg-turbo8-dev \
+    libmariadb-dev \
+    libmariadb-dev-compat \
+    libpcre3-dev \
+    libpolkit-gobject-1-dev \
+    libvlc-dev \
+    libvncserver-dev \
+    libx264-dev \
+    libmp4v2-dev \
+    libssl-dev \
+    libwebsockets-dev \
+    libjwt-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy source code
+WORKDIR /src
+COPY . /src/
+
+# Initialize git submodules
+RUN git submodule update --init --recursive || true
+
+# Build ZoneMinder
+RUN mkdir -p build && cd build && \
+    cmake \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DZM_RUNDIR=/var/run/zm \
+    -DZM_SOCKDIR=/var/run/zm \
+    -DZM_TMPDIR=/var/tmp/zm \
+    -DZM_LOGDIR=/var/log/zm \
+    -DZM_WEBDIR=/usr/share/zoneminder/www \
+    -DZM_CONTENTDIR=/var/cache/zoneminder \
+    -DZM_CACHEDIR=/var/cache/zoneminder/cache \
+    -DZM_CGIDIR=/usr/lib/zoneminder/cgi-bin \
+    -DZM_WEB_USER=www-data \
+    -DZM_WEB_GROUP=www-data \
+    -DZM_DB_HOST=localhost \
+    -DZM_DB_NAME=zm \
+    -DZM_DB_USER=zmuser \
+    -DZM_DB_PASS=zmpass \
+    .. && \
+    make -j$(nproc)
+
+# Runtime stage
+FROM --platform=linux/arm64 ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TZ=America/New_York
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    apache2 \
+    curl \
+    ffmpeg \
+    libapache2-mod-php8.1 \
+    libavcodec59 \
+    libavdevice59 \
+    libavfilter8 \
+    libavformat59 \
+    libavutil57 \
+    libswresample4 \
+    libswscale6 \
+    libcurl4-gnutls-dev \
+    libgnutls30 \
+    libjpeg-turbo8 \
+    libmariadb3 \
+    libmariadb-dev-compat \
+    libpcre3 \
+    libpolkit-gobject-1-0 \
+    libvlc5 \
+    libvncserver1 \
+    libx264-163 \
+    libmp4v2-2 \
+    libssl3 \
+    libwebsockets17 \
+    libjwt0 \
+    mariadb-client \
+    php8.1 \
+    php8.1-cli \
+    php8.1-common \
+    php8.1-curl \
+    php8.1-fpm \
+    php8.1-gd \
+    php8.1-mysql \
+    php8.1-xml \
+    php8.1-mbstring \
+    php8.1-zip \
+    rsync \
+    sudo \
+    tzdata \
+    zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy built ZoneMinder from builder
+COPY --from=builder /src/build /tmp/zm-build
+WORKDIR /tmp/zm-build
+RUN make install && \
+    rm -rf /tmp/zm-build
+
+# Create necessary directories
+RUN mkdir -p \
+    /var/run/zm \
+    /var/tmp/zm \
+    /var/log/zm \
+    /var/cache/zoneminder/{events,images,cache} \
+    && chown -R www-data:www-data \
+    /var/run/zm \
+    /var/tmp/zm \
+    /var/log/zm \
+    /var/cache/zoneminder
+
+# Configure Apache
+RUN a2enmod cgi rewrite expires headers && \
+    a2enconf zoneminder
+
+# PHP configuration for development
+RUN sed -i 's/^display_errors = Off/display_errors = On/' /etc/php/8.1/apache2/php.ini && \
+    sed -i 's/^error_reporting = .*/error_reporting = E_ALL/' /etc/php/8.1/apache2/php.ini && \
+    sed -i 's/^;date.timezone =.*/date.timezone = America\/New_York/' /etc/php/8.1/apache2/php.ini
+
+# Setup entrypoint script
+COPY docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Expose ports
+EXPOSE 80
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["apache2ctl", "-D", "FOREGROUND"]

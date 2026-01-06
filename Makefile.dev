@@ -1,0 +1,84 @@
+.PHONY: help dev-up dev-down dev-restart dev-build dev-logs dev-shell dev-test-ui dev-clean
+
+# Colors for output
+BLUE := \033[36m
+GREEN := \033[32m
+YELLOW := \033[33m
+RED := \033[31m
+RESET := \033[0m
+
+help: ## Show this help message
+	@echo "$(BLUE)ZoneMinder Development Environment$(RESET)"
+	@echo ""
+	@echo "$(GREEN)Available commands:$(RESET)"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(YELLOW)%-20s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
+
+dev-up: ## Start the development environment
+	@echo "$(BLUE)Starting ZoneMinder development environment...$(RESET)"
+	docker-compose -f docker-compose.dev.yml up -d
+	@echo "$(GREEN)✓ Services started!$(RESET)"
+	@echo "  Web UI:      http://localhost:8080"
+	@echo "  PHPMyAdmin:  http://localhost:8081"
+
+dev-build: ## Build/rebuild the Docker images
+	@echo "$(BLUE)Building ZoneMinder Docker images...$(RESET)"
+	docker-compose -f docker-compose.dev.yml build --no-cache
+	@echo "$(GREEN)✓ Build complete!$(RESET)"
+
+dev-down: ## Stop the development environment
+	@echo "$(BLUE)Stopping ZoneMinder development environment...$(RESET)"
+	docker-compose -f docker-compose.dev.yml down
+	@echo "$(GREEN)✓ Services stopped$(RESET)"
+
+dev-restart: ## Restart all services
+	@echo "$(BLUE)Restarting services...$(RESET)"
+	docker-compose -f docker-compose.dev.yml restart
+	@echo "$(GREEN)✓ Services restarted$(RESET)"
+
+dev-logs: ## Tail logs from all services
+	docker-compose -f docker-compose.dev.yml logs -f
+
+dev-shell: ## Open a shell in the ZoneMinder container
+	@echo "$(BLUE)Opening shell in ZoneMinder container...$(RESET)"
+	docker exec -it zm-app bash
+
+dev-mysql: ## Open MySQL shell
+	@echo "$(BLUE)Opening MySQL shell...$(RESET)"
+	docker exec -it zm-mysql mysql -uzmuser -pzmpass zm
+
+dev-test-ui: ## Capture a screenshot of the UI for testing
+	@echo "$(BLUE)Capturing UI screenshot...$(RESET)"
+	./docker/capture-ui.sh http://zoneminder
+	@echo "$(GREEN)✓ Screenshot saved to ./screenshots/$(RESET)"
+
+dev-clean: ## Stop and remove all containers and volumes (DESTRUCTIVE)
+	@echo "$(RED)WARNING: This will delete all data!$(RESET)"
+	@read -p "Are you sure? [y/N] " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		docker-compose -f docker-compose.dev.yml down -v; \
+		echo "$(GREEN)✓ Cleaned up$(RESET)"; \
+	else \
+		echo "$(YELLOW)Cancelled$(RESET)"; \
+	fi
+
+dev-status: ## Show status of all containers
+	@echo "$(BLUE)Container Status:$(RESET)"
+	@docker-compose -f docker-compose.dev.yml ps
+
+dev-zm-restart: ## Restart ZoneMinder daemon only
+	@echo "$(BLUE)Restarting ZoneMinder daemon...$(RESET)"
+	docker exec -it zm-app /usr/bin/zmpkg.pl restart
+	@echo "$(GREEN)✓ ZoneMinder daemon restarted$(RESET)"
+
+dev-apache-restart: ## Restart Apache only
+	@echo "$(BLUE)Restarting Apache...$(RESET)"
+	docker exec -it zm-app apache2ctl restart
+	@echo "$(GREEN)✓ Apache restarted$(RESET)"
+
+dev-apache-logs: ## Tail Apache error logs
+	docker exec -it zm-app tail -f /var/log/apache2/error.log
+
+dev-zm-logs: ## Tail ZoneMinder logs
+	docker exec -it zm-app tail -f /var/log/zm/zmpkg.log

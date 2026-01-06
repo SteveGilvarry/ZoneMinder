@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # MySQL Database - ARM64 native image available
+  db:
+    image: mysql:8.0
+    platform: linux/arm64
+    container_name: zm-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: zmpass
+      MYSQL_DATABASE: zm
+      MYSQL_USER: zmuser
+      MYSQL_PASSWORD: zmpass
+    volumes:
+      - zm-db-data:/var/lib/mysql
+      # Custom MySQL config for ZoneMinder
+      - ./docker/mysql/zm.cnf:/etc/mysql/conf.d/zm.cnf
+    networks:
+      - zm-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uzmuser", "-pzmpass"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ZoneMinder Application
+  zoneminder:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      platforms:
+        - linux/arm64
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    platform: linux/arm64
+    container_name: zm-app
+    restart: unless-stopped
+    privileged: true  # Required for camera access
+    shm_size: '2gb'   # Shared memory for ZM
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - TZ=America/New_York
+      - ZM_DB_HOST=db
+      - ZM_DB_NAME=zm
+      - ZM_DB_USER=zmuser
+      - ZM_DB_PASS=zmpass
+      # Development settings
+      - PHP_DISPLAY_ERRORS=On
+      - PHP_ERROR_REPORTING=E_ALL
+    ports:
+      - "8080:80"      # Web UI
+      - "9000:9000"    # PHP-FPM (if needed)
+    volumes:
+      # Mount web directory for live PHP editing
+      - ./web:/usr/share/zoneminder/www:rw
+      # Mount events and images
+      - zm-events:/var/cache/zoneminder/events
+      - zm-images:/var/cache/zoneminder/images
+      # Mount config
+      - zm-config:/etc/zm
+      # Logs for debugging
+      - zm-logs:/var/log/zm
+    networks:
+      - zm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PHPMyAdmin for database management (optional but useful)
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    platform: linux/arm64
+    container_name: zm-phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_USER: zmuser
+      PMA_PASSWORD: zmpass
+      UPLOAD_LIMIT: 256M
+    ports:
+      - "8081:80"
+    networks:
+      - zm-network
+
+networks:
+  zm-network:
+    driver: bridge
+
+volumes:
+  zm-db-data:
+    driver: local
+  zm-events:
+    driver: local
+  zm-images:
+    driver: local
+  zm-config:
+    driver: local
+  zm-logs:
+    driver: local
