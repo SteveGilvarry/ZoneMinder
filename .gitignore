@@ -1,6 +1,7 @@
 # If you are adding to this file, please ensure sorting is maintained. If using vim, you can use :%sort u
 CMakeCache.txt
 CMakeFiles/
+build/
 Makefile
 Makefile.in
 aclocal.m4
