@@ -195,6 +195,8 @@ jobs:
               # Enable RPM Fusion Free for ffmpeg on EL
               $PKG_MGR -y install --nogpgcheck \
                 https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm || true
+              # Enable rpmfusion-free-updates repo explicitly
+              $PKG_MGR config-manager --set-enabled rpmfusion-free-updates || true
             fi
             $PKG_MGR makecache -y || true
           fi
@@ -221,10 +223,16 @@ jobs:
             polkit-devel \
             openssl-devel \
             gsoap-devel || true
+          
+          # For EL systems, ensure epel-rpm-macros is available
+          . /etc/os-release
+          if echo "$ID" | grep -qiE 'rocky|almalinux'; then
+            $PKG_MGR install -y epel-rpm-macros || true
+          fi
 
           # Optional multimedia and integrations; try distro-appropriate names and don't fail if unavailable
           # FFmpeg binary and libs
-          ($PKG_MGR install -y ffmpeg-free || $PKG_MGR install -y ffmpeg || true)
+          ($PKG_MGR install -y ffmpeg-free || $PKG_MGR install -y ffmpeg || $PKG_MGR install -y ffmpeg-libs || true)
           ($PKG_MGR install -y ffmpeg-free-devel || $PKG_MGR install -y ffmpeg-devel || true)
           # JPEG Turbo
           ($PKG_MGR install -y turbojpeg-devel || $PKG_MGR install -y libjpeg-turbo-devel || true)
