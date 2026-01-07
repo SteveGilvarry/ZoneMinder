@@ -202,7 +202,8 @@ jobs:
           fi
 
           # Base toolchain and common build tooling (install AFTER repos are enabled)
-          $PKG_MGR install -y \
+          # Use --allowerasing to resolve package conflicts (e.g., curl vs curl-minimal, ffmpeg-free vs ffmpeg)
+          $PKG_MGR install -y --allowerasing \
             git ca-certificates gnupg \
             rpm-build rpm-sign rpmdevtools rpmlint \
             cmake gcc gcc-c++ make \
@@ -231,9 +232,14 @@ jobs:
           fi
 
           # Optional multimedia and integrations; try distro-appropriate names and don't fail if unavailable
-          # FFmpeg binary and libs
-          ($PKG_MGR install -y ffmpeg-free || $PKG_MGR install -y ffmpeg || $PKG_MGR install -y ffmpeg-libs || true)
-          ($PKG_MGR install -y ffmpeg-free-devel || $PKG_MGR install -y ffmpeg-devel || true)
+          # FFmpeg: use ffmpeg-free on Fedora, ffmpeg on EL (from RPM Fusion)
+          # Note: ffmpeg is a BuildRequires so this must succeed
+          . /etc/os-release
+          if echo "$ID" | grep -qi fedora; then
+            $PKG_MGR install -y --allowerasing ffmpeg-free ffmpeg-free-devel
+          else
+            $PKG_MGR install -y --allowerasing ffmpeg ffmpeg-devel
+          fi
           # JPEG Turbo
           ($PKG_MGR install -y turbojpeg-devel || $PKG_MGR install -y libjpeg-turbo-devel || true)
           # V4L2
