@@ -107,7 +107,12 @@ BuildRequires: json-devel
 BuildRequires: pkgconfig(libjwt)
 
 # ZoneMinder looks for and records the location of the ffmpeg binary during build
+# Fedora uses ffmpeg-free; RHEL/EL use ffmpeg (from EPEL or RPM Fusion)
+%if 0%{?fedora}
+BuildRequires: ffmpeg-free
+%else
 BuildRequires: ffmpeg
+%endif
 # Link-time ffmpeg libs via pkgconfig (Fedora guideline)
 BuildRequires: pkgconfig(libavcodec)
 BuildRequires: pkgconfig(libavformat)

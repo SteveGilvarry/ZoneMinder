@@ -286,11 +286,23 @@ jobs:
             exit 1
           fi
           
-          # Install build dependencies from spec
+          # Install build dependencies from spec (skip unavailable packages)
           if command -v dnf &> /dev/null; then
-            dnf builddep -y $SPEC_FILE || echo "Warning: Some build deps may be missing"
+            dnf builddep -y --skip-unavailable $SPEC_FILE || true
+            # Install core deps that builddep may have skipped
+            dnf install -y bzip2-devel json-devel mariadb-devel net-tools \
+              perl perl-generators systemd-devel \
+              gnutls-devel libcurl-devel \
+              perl-Archive-Tar perl-Archive-Zip perl-DBD-MySQL \
+              perl-Date-Manip perl-Expect perl-ExtUtils-MakeMaker \
+              perl-LWP-Protocol-https perl-MIME-Lite perl-MIME-tools \
+              perl-Net-SFTP-Foreign perl-PHP-Serialization \
+              perl-Sys-Mmap perl-Time-HiRes perl-Sys-Syslog || true
           else
-            yum-builddep -y $SPEC_FILE || echo "Warning: Some build deps may be missing"
+            yum-builddep -y --skip-broken $SPEC_FILE || true
+            yum install -y bzip2-devel json-devel mariadb-devel net-tools \
+              perl perl-generators systemd-devel \
+              gnutls-devel libcurl-devel || true
           fi
           
           # Create source tarball
