@@ -189,13 +189,17 @@ jobs:
             $PKG_MGR -y install dnf-plugins-core || true
             . /etc/os-release
             if echo "$ID" | grep -qiE 'rocky|almalinux'; then
+              # Enable EPEL first (needed for rpmdevtools and other build deps)
               $PKG_MGR -y install epel-release || true
               $PKG_MGR config-manager --set-enabled crb || true
+              # Enable RPM Fusion Free for ffmpeg on EL
+              $PKG_MGR -y install --nogpgcheck \
+                https://mirrors.rpmfusion.org/free/el/rpmfusion-free-release-$(rpm -E %rhel).noarch.rpm || true
             fi
             $PKG_MGR makecache -y || true
           fi
 
-          # Base toolchain and common build tooling
+          # Base toolchain and common build tooling (install AFTER repos are enabled)
           $PKG_MGR install -y \
             git ca-certificates gnupg \
             rpm-build rpm-sign rpmdevtools rpmlint \
@@ -207,7 +211,8 @@ jobs:
             gsoap-devel || true
 
           # Optional multimedia and integrations; try distro-appropriate names and don't fail if unavailable
-          # FFmpeg
+          # FFmpeg binary and libs
+          ($PKG_MGR install -y ffmpeg-free || $PKG_MGR install -y ffmpeg || true)
           ($PKG_MGR install -y ffmpeg-free-devel || $PKG_MGR install -y ffmpeg-devel || true)
           # JPEG Turbo
           ($PKG_MGR install -y turbojpeg-devel || $PKG_MGR install -y libjpeg-turbo-devel || true)
@@ -308,6 +313,23 @@ jobs:
           # Create source tarball
           VERSION=$(grep '^Version:' $SPEC_FILE | awk '{print $2}')
           git archive --format=tar.gz --prefix=zoneminder-$VERSION/ HEAD > ~/rpmbuild/SOURCES/zoneminder-$VERSION.tar.gz
+          
+          # Download additional source tarballs required by spec
+          CRUD_VER=$(grep '^%global crud_version' $SPEC_FILE | awk '{print $3}')
+          CEB_VER=$(grep '^%global ceb_version' $SPEC_FILE | awk '{print $3}')
+          RTSP_COMMIT=$(grep '^%global rtspserver_commit' $SPEC_FILE | awk '{print $3}')
+          CXXURL_VER=$(grep '^%global CxxUrl_version' $SPEC_FILE | awk '{print $3}')
+          
+          cd ~/rpmbuild/SOURCES
+          curl -fsSL -o crud-${CRUD_VER}.tar.gz \
+            https://github.com/FriendsOfCake/crud/archive/v${CRUD_VER}.tar.gz
+          curl -fsSL -o cakephp-enum-behavior-${CEB_VER}.tar.gz \
+            https://github.com/ZoneMinder/CakePHP-Enum-Behavior/archive/${CEB_VER}.tar.gz
+          curl -fsSL -o RtspServer-${RTSP_COMMIT}.tar.gz \
+            https://github.com/ZoneMinder/RtspServer/archive/${RTSP_COMMIT}.tar.gz
+          curl -fsSL -o CxxUrl-${CXXURL_VER}.tar.gz \
+            https://github.com/chmike/CxxUrl/archive/${CXXURL_VER}.tar.gz
+          cd -
           
           # Build the RPM (toggle features per distro)
           . /etc/os-release
