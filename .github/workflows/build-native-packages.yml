@@ -204,7 +204,19 @@ jobs:
             git ca-certificates gnupg \
             rpm-build rpm-sign rpmdevtools rpmlint \
             cmake gcc gcc-c++ make \
-            curl bash rsync openssh-clients \
+            curl bash rsync openssh-clients || {
+            echo "ERROR: Failed to install base build tools"
+            exit 1
+          }
+          
+          # Verify rpmdevtools is available
+          command -v rpmdev-setuptree || {
+            echo "ERROR: rpmdev-setuptree not found after installing rpmdevtools"
+            exit 1
+          }
+          
+          # Install additional build deps (these can fail without blocking)
+          $PKG_MGR install -y \
             mariadb-connector-c-devel \
             polkit-devel \
             openssl-devel \
@@ -263,7 +275,13 @@ jobs:
       - name: Setup RPM build environment
         run: |
           set -eux
-          rpmdev-setuptree
+          # Create rpmbuild tree (use rpmdev-setuptree if available, otherwise create manually)
+          if command -v rpmdev-setuptree &>/dev/null; then
+            rpmdev-setuptree
+          else
+            echo "rpmdev-setuptree not found, creating directories manually"
+            mkdir -p ~/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
+          fi
           
           # Configure GPG for RPM signing only when secrets are available
           if [ "${{ env.SIGNING_ENABLED }}" = "true" ]; then
