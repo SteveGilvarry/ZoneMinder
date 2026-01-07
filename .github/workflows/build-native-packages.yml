@@ -162,7 +162,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro: ["fedora:41", "fedora:42", "fedora:43", "rockylinux:9", "rockylinux:10", "almalinux:9", "almalinux:10"]
+        # Use fully qualified image names for Rocky; Alma uses official org images
+        distro: [
+          "fedora:41",
+          "fedora:42",
+          "fedora:43",
+          "rockylinux/rockylinux:9",
+          "rockylinux/rockylinux:10",
+          "almalinux:9",
+          "almalinux:10"
+        ]
     container:
       image: ${{ matrix.distro }}
 
