@@ -204,7 +204,7 @@ jobs:
             mariadb-connector-c-devel \
             polkit-devel \
             openssl-devel \
-            gsoap-devel || true
+            gsoap-devel rpmdevtools || true
 
           # Optional multimedia and integrations; try distro-appropriate names and don't fail if unavailable
           # FFmpeg
@@ -269,6 +269,9 @@ jobs:
           GPG_TTY: /dev/console
         run: |
           set -eux
+          
+          # Fix git ownership in container
+          git config --global --add safe.directory /__w/ZoneMinder/ZoneMinder
           
           # Check if there's a spec file in the repo
           # Adjust the path according to your repository structure
