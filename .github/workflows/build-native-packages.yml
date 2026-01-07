@@ -77,8 +77,10 @@ jobs:
           set -eux
           cat >gen-key.cfg <<'EOF'
           %no-protection
-          Key-Type: default
-          Subkey-Type: default
+          Key-Type: RSA
+          Key-Length: 3072
+          Subkey-Type: RSA
+          Subkey-Length: 3072
           Name-Real: GitHub CI Test Key
           Name-Email: ci@example.com
           Expire-Date: 2d
@@ -160,7 +162,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro: ["fedora:40", "fedora:41", "rockylinux:9", "almalinux:9"]
+        distro: ["fedora:41", "fedora:42", "fedora:43", "rockylinux:9", "rockylinux:10", "almalinux:9", "almalinux:10"]
     container:
       image: ${{ matrix.distro }}
 
@@ -173,23 +175,43 @@ jobs:
           else
             PKG_MGR=yum
           fi
-          
+
+          if [ "$PKG_MGR" = dnf ]; then
+            $PKG_MGR -y install dnf-plugins-core || true
+            . /etc/os-release
+            if echo "$ID" | grep -qiE 'rocky|almalinux'; then
+              $PKG_MGR -y install epel-release || true
+              $PKG_MGR config-manager --set-enabled crb || true
+            fi
+            $PKG_MGR makecache -y || true
+          fi
+
+          # Base toolchain and common build tooling
           $PKG_MGR install -y \
             git ca-certificates gnupg \
             rpm-build rpm-sign rpmdevtools rpmlint \
             cmake gcc gcc-c++ make \
             curl bash rsync openssh-clients \
-            ffmpeg-free-devel \
-            turbojpeg-devel \
             mariadb-connector-c-devel \
             polkit-devel \
-            libv4l-devel \
-            vlc-devel \
             openssl-devel \
-            libvncserver-devel \
-            libjwt-devel \
-            gsoap-devel \
-            mosquitto-devel
+            gsoap-devel || true
+
+          # Optional multimedia and integrations; try distro-appropriate names and don't fail if unavailable
+          # FFmpeg
+          ($PKG_MGR install -y ffmpeg-free-devel || $PKG_MGR install -y ffmpeg-devel || true)
+          # JPEG Turbo
+          ($PKG_MGR install -y turbojpeg-devel || $PKG_MGR install -y libjpeg-turbo-devel || true)
+          # V4L2
+          ($PKG_MGR install -y libv4l-devel || $PKG_MGR install -y v4l-utils-devel || true)
+          # VLC (may not exist on EL; EPEL may provide)
+          ($PKG_MGR install -y vlc-devel || true)
+          # VNC server
+          ($PKG_MGR install -y libvncserver-devel || true)
+          # JWT
+          ($PKG_MGR install -y libjwt-devel || true)
+          # Mosquitto (MQTT)
+          ($PKG_MGR install -y mosquitto-devel || true)
 
       - name: Checkout
         uses: actions/checkout@v6
@@ -202,8 +224,10 @@ jobs:
           set -eux
           cat >gen-key.cfg <<'EOF'
           %no-protection
-          Key-Type: default
-          Subkey-Type: default
+          Key-Type: RSA
+          Key-Length: 3072
+          Subkey-Type: RSA
+          Subkey-Length: 3072
           Name-Real: GitHub CI Test Key
           Name-Email: ci@example.com
           Expire-Date: 2d
@@ -217,8 +241,8 @@ jobs:
         if: env.SIGNING_ENABLED == 'true'
         uses: crazy-max/ghaction-import-gpg@v6
         with:
-          gpg_private_key: ${{ secrets. ZMREPO_GPG_PRIVATE_KEY }}
-          passphrase: ${{ secrets. ZMREPO_GPG_PASSPHRASE }}
+          gpg_private_key: ${{ secrets.ZMREPO_GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.ZMREPO_GPG_PASSPHRASE }}
           git_user_signingkey: false
           git_commit_gpgsign: false
 
@@ -241,8 +265,8 @@ jobs:
           # Adjust the path according to your repository structure
           if [ -f "distros/redhat/zoneminder.spec" ]; then
             SPEC_FILE="distros/redhat/zoneminder.spec"
-          elif [ -f "zoneminder. spec" ]; then
-            SPEC_FILE="zoneminder. spec"
+          elif [ -f "zoneminder.spec" ]; then
+            SPEC_FILE="zoneminder.spec"
           else
             echo "Error: No spec file found"
             exit 1
@@ -252,8 +276,15 @@ jobs:
           VERSION=$(grep '^Version:' $SPEC_FILE | awk '{print $2}')
           git archive --format=tar.gz --prefix=zoneminder-$VERSION/ HEAD > ~/rpmbuild/SOURCES/zoneminder-$VERSION.tar.gz
           
-          # Build the RPM
-          rpmbuild -ba $SPEC_FILE
+          # Build the RPM (toggle features per distro)
+          . /etc/os-release
+          RPMSPEC_OPTS="--with v4l --with mqtt --with vnc"
+          if echo "$ID" | grep -qi fedora; then
+            RPMSPEC_OPTS="$RPMSPEC_OPTS --with vlc"
+          else
+            RPMSPEC_OPTS="$RPMSPEC_OPTS --without vlc"
+          fi
+          rpmbuild -ba $SPEC_FILE $RPMSPEC_OPTS
 
       - name: Sign RPMs
         if: env.SIGNING_ENABLED == 'true'
@@ -264,7 +295,7 @@ jobs:
           # Sign all built RPMs
           echo "${{ secrets.ZMREPO_GPG_PASSPHRASE }}" | \
             rpm --addsign ~/rpmbuild/RPMS/*/*.rpm \
-            --define "_gpg_name ${{ secrets. ZMREPO_GPG_KEY_ID }}"
+            --define "_gpg_name ${{ secrets.ZMREPO_GPG_KEY_ID }}"
 
       - name:  Collect . rpm artifacts
         run: |

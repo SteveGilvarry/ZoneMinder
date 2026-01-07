@@ -42,15 +42,24 @@ Source3: https://github.com/ZoneMinder/RtspServer/archive/%{rtspserver_commit}.t
 Source4: https://github.com/chmike/CxxUrl/archive/%{CxxUrl_version}.tar.gz#/CxxUrl-%{CxxUrl_version}.tar.gz
 
 %{?rhel:BuildRequires: epel-rpm-macros}
+
+# Feature toggles with sensible defaults: enable VLC on Fedora, disable on EL
+%if 0%{?fedora}
+%bcond_without vlc
+%else
+%bcond_with vlc
+%endif
+%bcond_without v4l
+%bcond_without mqtt
+%bcond_without vnc
+
+# Core build tools and system libs
 BuildRequires: systemd-devel
 BuildRequires: mariadb-devel
 BuildRequires: perl-podlators
 BuildRequires: polkit-devel
 BuildRequires: cmake
-BuildRequires: gnutls-devel
 BuildRequires: bzip2-devel
-BuildRequires: pcre2-devel 
-BuildRequires: libjpeg-turbo-devel
 BuildRequires: findutils
 BuildRequires: coreutils
 BuildRequires: net-tools
@@ -72,25 +81,50 @@ BuildRequires: perl(Expect)
 BuildRequires: perl(Sys::Syslog)
 BuildRequires: gcc 
 BuildRequires: gcc-c++
-BuildRequires: vlc-devel
-BuildRequires: libcurl-devel
-BuildRequires: libv4l-devel
 BuildRequires: desktop-file-utils
 BuildRequires: gzip
-BuildRequires: zlib-devel
+
+# Prefer pkgconfig-based BuildRequires for portable dependency resolution
+BuildRequires: pkgconfig(libcurl)
+BuildRequires: pkgconfig(gnutls)
+BuildRequires: pkgconfig(zlib)
+BuildRequires: pkgconfig(libpcre2-8)
+BuildRequires: pkgconfig(libjpeg)
+BuildRequires: pkgconfig(libturbojpeg)
+
+# VLC (optional)
+%if %{with vlc}
+BuildRequires: pkgconfig(libvlc)
+%endif
+
+# Video4Linux (optional)
+%if %{with v4l}
+BuildRequires: pkgconfig(libv4l2)
+%endif
 
 # jwt-cpp looks for nlohmann_json which is part of json-devel
 BuildRequires: json-devel
+BuildRequires: pkgconfig(libjwt)
 
 # ZoneMinder looks for and records the location of the ffmpeg binary during build
 BuildRequires: ffmpeg
-BuildRequires: ffmpeg-devel
+# Link-time ffmpeg libs via pkgconfig (Fedora guideline)
+BuildRequires: pkgconfig(libavcodec)
+BuildRequires: pkgconfig(libavformat)
+BuildRequires: pkgconfig(libavutil)
+BuildRequires: pkgconfig(libswscale)
+BuildRequires: pkgconfig(libswresample)
+BuildRequires: pkgconfig(libavdevice)
 
 # Optional but needed for ONVIF and others
-BuildRequires: gnutls-devel
 BuildRequires: gsoap-devel
-BuildRequires: libvncserver-devel
-BuildRequires: mosquitto-devel
+%if %{with vnc}
+BuildRequires: pkgconfig(libvncserver)
+%endif
+%if %{with mqtt}
+BuildRequires: pkgconfig(libmosquitto)
+BuildRequires: pkgconfig(libmosquittopp)
+%endif
 
 # Allow existing user base to seamlessly transition to sub-packages
 Requires: %{name}-common%{?_isa} = %{version}-%{release}
