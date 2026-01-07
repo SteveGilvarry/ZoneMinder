@@ -204,7 +204,7 @@ jobs:
             mariadb-connector-c-devel \
             polkit-devel \
             openssl-devel \
-            gsoap-devel rpmdevtools || true
+            gsoap-devel || true
 
           # Optional multimedia and integrations; try distro-appropriate names and don't fail if unavailable
           # FFmpeg
@@ -260,9 +260,11 @@ jobs:
           set -eux
           rpmdev-setuptree
           
-          # Configure GPG for RPM signing
-          echo "%_signature gpg" >> ~/.rpmmacros
-          echo "%_gpg_name ${{ secrets.ZMREPO_GPG_KEY_ID }}" >> ~/.rpmmacros
+          # Configure GPG for RPM signing only when secrets are available
+          if [ "${{ env.SIGNING_ENABLED }}" = "true" ]; then
+            echo "%_signature gpg" >> ~/.rpmmacros
+            echo "%_gpg_name ${{ secrets.ZMREPO_GPG_KEY_ID }}" >> ~/.rpmmacros
+          fi
 
       - name: Build RPM
         env:
@@ -282,6 +284,13 @@ jobs:
           else
             echo "Error: No spec file found"
             exit 1
+          fi
+          
+          # Install build dependencies from spec
+          if command -v dnf &> /dev/null; then
+            dnf builddep -y $SPEC_FILE || echo "Warning: Some build deps may be missing"
+          else
+            yum-builddep -y $SPEC_FILE || echo "Warning: Some build deps may be missing"
           fi
           
           # Create source tarball
