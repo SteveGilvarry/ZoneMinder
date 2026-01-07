@@ -166,3 +166,13 @@ body.sticky #monitorList thead {
   position: absolute;
   */
 }
+
+.consoleTable .colName .material-icons.md-18 {
+  font-size: 18px;
+  vertical-align: middle;
+  opacity: 0.6;
+}
+
+.consoleTable .colName .material-icons.md-18:hover {
+  opacity: 1;
+}

@@ -145,7 +145,12 @@ function processRows(rows) {
     } else {
       nameHtml += row.Name;
     }
-    
+
+    // Add settings icon for edit permissions
+    if (canEdit.Monitors) {
+      nameHtml += ' <a href="?view=monitor&amp;mid=' + mid + '" title="Edit Monitor"><i class="material-icons md-18">settings</i></a>';
+    }
+
     // Add groups
     if (row.Groups) {
       nameHtml += '<br/><div class="small text-nowrap text-muted">' + row.Groups + '</div>';
@@ -185,17 +190,7 @@ function processRows(rows) {
       functionHtml += fps_string + '</div>';
     }
     row.Function = functionHtml;
-    
-    // Format Source column with link and dimensions
-    var sourceHtml = '';
-    if (canEdit.Monitors) {
-      sourceHtml = '<a href="?view=monitor&amp;mid=' + mid + '"><span class="' + source_class + '">' + row.Source + '</span></a>';
-    } else {
-      sourceHtml = '<span class="' + source_class + '">' + row.Source + '</span>';
-    }
-    sourceHtml += '<br/>' + row.Width + 'x' + row.Height;
-    row.Source = sourceHtml;
-    
+
     // Format event count columns
     var eventPeriods = ['Total', 'Hour', 'Day', 'Week', 'Month', 'Archived'];
     eventPeriods.forEach(function(period) {

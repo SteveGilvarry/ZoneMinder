@@ -266,7 +266,6 @@ echo $navbar ?>
 <?php if ( count($Servers) ) { ?>
             <th data-sortable="true" data-field="Server" class="colServer"><?php echo translate('Server') ?></th>
 <?php } ?>
-            <th data-sortable="true" data-field="Source" class="colSource"><i class="material-icons">settings</i>&nbsp;<?php echo translate('Source') ?></th>
 <?php if ( $show_storage_areas ) { ?>
             <th data-sortable="true" data-field="Storage" class="colStorage"><?php echo translate('Storage') ?></th>
 <?php }
