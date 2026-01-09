@@ -1063,7 +1063,14 @@ const observerMontage = new ResizeObserver((objResizes) => {
 });
 
 // Kick everything off
-$j(window).on('load', () => initPage());
+// Use DOMContentLoaded instead of 'load' to avoid waiting for MJPEG streams to "finish"
+// (they never do - they're continuous streams!)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initPage);
+} else {
+  // DOMContentLoaded already fired
+  initPage();
+}
 
 document.onvisibilitychange = () => {
   if (document.visibilityState === "hidden") {
