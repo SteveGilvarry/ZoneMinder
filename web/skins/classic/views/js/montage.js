@@ -4,6 +4,8 @@ var monitors_ul = null;
 var idleTimeoutTriggered = false; /* Timer ZM_WEB_VIEWING_TIMEOUT has been triggered */
 var monitorInitComplete = false;
 var resizeInterval = null;
+var isScrolling = false; /* Track active scrolling state for Safari scroll-end fallback */
+var scrollEndTimer = null;
 
 const VIEWING = 0;
 const EDITING = 1;
@@ -731,14 +733,19 @@ function initPage() {
     document.getElementById('content').addEventListener('scrollend', on_scroll);
   } else {
     console.log('Browser does not support onscrollend');
-    document.onscroll = () => {
-      clearTimeout(window.scrollEndTimer);
-      window.scrollEndTimer = setTimeout(on_scroll, 100);
+    // Safari fallback: Use scroll state tracking to prevent rapid stop/start cycles
+    const scrollHandler = () => {
+      isScrolling = true;
+      clearTimeout(scrollEndTimer);
+      // Longer delay (150ms) for Safari to ensure scroll has truly ended
+      scrollEndTimer = setTimeout(() => {
+        isScrolling = false;
+        on_scroll();
+      }, 150);
     };
-    document.getElementById('content').onscroll = () => {
-      clearTimeout(window.scrollEndTimer);
-      window.scrollEndTimer = setTimeout(on_scroll, 100);
-    };
+
+    document.addEventListener('scroll', scrollHandler, {passive: true});
+    document.getElementById('content').addEventListener('scroll', scrollHandler, {passive: true});
   }
   window.addEventListener('resize', on_scroll);
 } // end initPage
@@ -757,7 +764,9 @@ function showСontrolElementsOnStream(stream) {
 }
 
 function on_scroll() {
-  if (!monitorInitComplete || idleTimeoutTriggered) return;
+  // Don't process scroll events while actively scrolling (Safari fallback)
+  // or if monitors haven't finished initializing, or if idle timeout triggered
+  if (!monitorInitComplete || idleTimeoutTriggered || isScrolling) return;
 
   for (let i = 0, length = monitors.length; i < length; i++) {
     const monitor = monitors[i];
@@ -771,7 +780,7 @@ function on_scroll() {
       //monitor.kill();
     }
   } // end foreach monitor
-} // end function on_scsroll
+} // end function on_scroll
 
 function isOutOfViewport(elem) {
   // Get element's bounding
