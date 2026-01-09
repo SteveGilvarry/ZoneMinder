@@ -1595,6 +1595,10 @@ function xhtmlFooter() {
     echo output_script_if_exists(array('assets/swiped-events/dist/swiped-events.min.js'));
   }
   if ( $basename == 'montage' ) {
+    // Safari debug mode - enable with ?debug=safari or by setting SAFARI_DEBUG cookie
+    if (isset($_GET['debug']) && $_GET['debug'] == 'safari' || isset($_COOKIE['SAFARI_DEBUG'])) {
+      echo '<script src="'.cache_bust('js/safari-montage-debug.js').'"></script>'.PHP_EOL;
+    }
   } else if ( $basename == 'watch' || $basename == 'event') {
     echo output_script_if_exists(array('assets/jquery.panzoom/dist/jquery.panzoom.js'));
     echo output_script_if_exists(array('js/panzoom.js'));
