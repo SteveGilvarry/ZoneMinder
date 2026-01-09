@@ -207,7 +207,11 @@ function selectLayout(new_layout_id) {
   changeMonitorStatusPosition(); //!!! After loading the saved layer, you must execute.
   monitorsSetScale();
   */
-  setTimeout(on_scroll, 100);
+  // Only call on_scroll after monitors are initialized to avoid checking
+  // stale bounding rects during GridStack layout
+  setTimeout(() => {
+    if (monitorInitComplete) on_scroll();
+  }, 100);
   setCookie('zmMontageLayout', layout_id);
 } // end function selectLayout(element)
 
@@ -747,7 +751,10 @@ function initPage() {
     document.addEventListener('scroll', scrollHandler, {passive: true});
     document.getElementById('content').addEventListener('scroll', scrollHandler, {passive: true});
   }
-  window.addEventListener('resize', on_scroll);
+  // Also guard resize events to prevent premature on_scroll during initialization
+  window.addEventListener('resize', () => {
+    if (monitorInitComplete) on_scroll();
+  });
 } // end initPage
 
 function hideСontrolElementsOnStream(stream) {
