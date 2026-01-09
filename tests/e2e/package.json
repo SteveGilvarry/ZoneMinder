@@ -1,0 +1,27 @@
+{
+  "name": "zoneminder-e2e-tests",
+  "version": "1.0.0",
+  "description": "End-to-end tests for ZoneMinder Safari montage debugging",
+  "scripts": {
+    "test": "playwright test",
+    "test:safari": "playwright test --project=webkit",
+    "test:chrome": "playwright test --project=chromium",
+    "test:both": "playwright test --project=chromium --project=webkit",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "show:report": "playwright show-report results/html-report",
+    "compare": "node compare-results.js"
+  },
+  "keywords": [
+    "zoneminder",
+    "playwright",
+    "e2e",
+    "safari",
+    "testing"
+  ],
+  "author": "",
+  "license": "GPL-2.0",
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
