@@ -173,9 +173,53 @@ if ( $command =~ /^(?:start|restart)$/ ) {
   Debug("zmdc.pl check = $status");
 
   if ( $status eq 'stopped' ) {
-    if ( $Config{ZM_DYN_DB_VERSION}
+    # Check for new migration system (Schema_Migrations table)
+    my $hasNewMigrationSystem = 0;
+    my $pendingMigrations = 0;
+
+    my $checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+                    WHERE table_schema = DATABASE() AND table_name = 'Schema_Migrations'";
+    my $checkSth = $dbh->prepare_cached($checkSql);
+    if ($checkSth) {
+      $checkSth->execute();
+      ($hasNewMigrationSystem) = $checkSth->fetchrow_array();
+      $checkSth->finish();
+    }
+
+    if ($hasNewMigrationSystem) {
+      # New migration system - check for pending migrations
+      my $migrationsDir = $Config{ZM_PATH_DATA}.'/db/migrations';
+      if (-d $migrationsDir) {
+        opendir(my $dh, $migrationsDir);
+        my @migrationFiles = grep { /^\d{8}_\d{6}_.*\.sql$/ } readdir($dh);
+        closedir($dh);
+
+        my $appliedSql = "SELECT Migration FROM Schema_Migrations";
+        my $appliedSth = $dbh->prepare_cached($appliedSql);
+        $appliedSth->execute();
+        my %applied;
+        while (my ($m) = $appliedSth->fetchrow_array()) {
+          $applied{$m} = 1;
+        }
+        $appliedSth->finish();
+
+        foreach my $file (@migrationFiles) {
+          my ($name) = $file =~ /^(.*)\.sql$/;
+          if (!$applied{$name}) {
+            $pendingMigrations++;
+          }
+        }
+      }
+
+      if ($pendingMigrations > 0) {
+        Fatal("Database has $pendingMigrations pending migration(s). "
+          .'Please run zmupdate.pl to apply migrations.');
+        exit(-1);
+      }
+    } elsif ( $Config{ZM_DYN_DB_VERSION}
         and ( $Config{ZM_DYN_DB_VERSION} ne ZM_VERSION )
        ) {
+      # Legacy version check for systems not yet migrated
          my ( $db_major, $db_minor, $db_micro ) = split(/\./, $Config{ZM_DYN_DB_VERSION});
          my ( $major, $minor, $micro ) = split(/\./, ZM_VERSION);
          if ( $db_major != $major or $db_minor != $minor ) {
@@ -190,7 +234,7 @@ if ( $command =~ /^(?:start|restart)$/ ) {
              .', please run zmupdate.pl to update.'
            );
          }
-    } # end if version mismatch
+    } # end if version/migration check
 
 # Recreate the temporary directory if it's been wiped
     verifyFolder('@ZM_TMPDIR@');
