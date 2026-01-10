@@ -898,8 +898,42 @@ function getZMVersionHTML() {
   $result = '';
   if ( !canView('System') ) return $result;
   $content = '';
-  
-  if ( ZM_DYN_DB_VERSION && (ZM_DYN_DB_VERSION != ZM_VERSION) ) {  // Must upgrade before proceeding
+
+  // Check if new migration system is in use (Schema_Migrations table exists)
+  $hasNewMigrationSystem = false;
+  $pendingMigrations = 0;
+
+  $tableCheck = dbFetchOne(
+    "SELECT COUNT(*) AS cnt FROM INFORMATION_SCHEMA.TABLES
+     WHERE table_schema = DATABASE() AND table_name = 'Schema_Migrations'",
+    'cnt'
+  );
+
+  if ($tableCheck && $tableCheck > 0) {
+    $hasNewMigrationSystem = true;
+    // Count pending migrations by checking migration files vs applied migrations
+    // For now, just check if any migrations need to be applied via zmupdate.pl
+    // The actual pending count would require scanning the migrations directory
+    // which is better handled by zmupdate.pl --status
+  }
+
+  // Check for pending migrations (new system) or version mismatch (legacy system)
+  if ($hasNewMigrationSystem) {
+    // New migration system - version mismatch no longer applies
+    // Users should run zmupdate.pl --status to check for pending migrations
+    // If ZM_DYN_DB_VERSION is very old, still warn (pre-transition system)
+    if (ZM_DYN_DB_VERSION && version_compare(ZM_DYN_DB_VERSION, '1.37.76', '<')) {
+      // System may need bootstrap migration
+      $class = 'text-danger';
+      $tt_text = translate('RunLocalUpdate');
+      $content = 'v'.ZM_VERSION.PHP_EOL;
+    } else {
+      // System is up to date with new migration system
+      $class = '';
+      $tt_text = translate('UpdateNotNecessary');
+      $content = 'v'.ZM_VERSION.PHP_EOL;
+    }
+  } else if ( ZM_DYN_DB_VERSION && (ZM_DYN_DB_VERSION != ZM_VERSION) ) {  // Legacy: Must upgrade before proceeding
     $class = 'text-danger';
     $tt_text = translate('RunLocalUpdate');
     $content = 'v'.ZM_VERSION.PHP_EOL;
