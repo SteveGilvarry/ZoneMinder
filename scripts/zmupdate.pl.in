@@ -49,6 +49,9 @@ It can also apply and configure upgrades etc, including on the fly upgrades.
  -d <dir>, --dir=<dir>             - Directory containing update files if not in default build location
  -interactive                      - interact with the user
  -nointeractive                    - do not interact with the user
+ --status                          - Show migration status (applied/pending)
+ --pending                         - List pending migrations only
+ --create=<name>                   - Generate new migration file template
 
 =cut
 use strict;
@@ -107,6 +110,9 @@ my $dbUser = $Config{ZM_DB_USER};
 my $dbPass = $Config{ZM_DB_PASS};
 my $super = 0;
 my $updateDir = '';
+my $showStatus = 0;
+my $showPending = 0;
+my $createMigration = '';
 
 GetOptions(
     'check'          =>\$check,
@@ -119,7 +125,10 @@ GetOptions(
     'user:s'         =>\$dbUser,
     'pass:s'         =>\$dbPass,
     'super'          =>\$super,
-    'dir:s'          =>\$updateDir
+    'dir:s'          =>\$updateDir,
+    'status'         =>\$showStatus,
+    'pending'        =>\$showPending,
+    'create=s'       =>\$createMigration
     ) or pod2usage(-exitstatus => -1);
 
 if ($updateDir) {
@@ -134,6 +143,10 @@ if ($updateDir) {
   }
 }
 
+# Directory paths for legacy and new migrations
+my $legacyDir = $updateDir.'/legacy';
+my $migrationsDir = $updateDir.'/migrations';
+
 my $dbh = zmDbConnect(undef, { mysql_multi_statements=>1 } );
 die "Unable to connect to db\n" if !$dbh;
 
@@ -144,7 +157,7 @@ $Config{ZM_DB_PASS} = $dbPass;
 # we escape dbpass with single quotes so that $ in the password has no effect, but dbpass could have a ' in it.
 $dbPass =~ s/'/\\'/g;
 
-if ( ! ($check || $freshen || $rename || $zoneFix || $migrateEvents || $version) ) {
+if ( ! ($check || $freshen || $rename || $zoneFix || $migrateEvents || $version || $showStatus || $showPending || $createMigration) ) {
   if ( $Config{ZM_DYN_DB_VERSION} ) {
     $version = $Config{ZM_DYN_DB_VERSION};
   } else {
@@ -153,7 +166,7 @@ if ( ! ($check || $freshen || $rename || $zoneFix || $migrateEvents || $version)
   }
 }
 
-if ( ($check + $freshen + $rename + $zoneFix + $migrateEvents + ($version?1:0)) > 1 ) {
+if ( ($check + $freshen + $rename + $zoneFix + $migrateEvents + ($version?1:0) + $showStatus + $showPending + ($createMigration?1:0)) > 1 ) {
   print(STDERR "Please give only one option\n");
   pod2usage(-exitstatus => -1);
 }
@@ -382,6 +395,92 @@ Press \'y\' to convert your tables to InnoDB or \'n\' to skip : ');
     }
   }
 } # end if interactive
+
+# Handle --create option to generate a new migration file
+if ( $createMigration ) {
+  my $timestamp = strftime('%Y%m%d_%H%M%S', localtime());
+  # Sanitize the migration name
+  my $safeName = lc($createMigration);
+  $safeName =~ s/[^a-z0-9_]/_/g;
+  $safeName =~ s/_+/_/g;
+  $safeName =~ s/^_|_$//g;
+
+  my $filename = "${timestamp}_${safeName}.sql";
+  my $filepath = "$migrationsDir/$filename";
+
+  if (! -d $migrationsDir) {
+    die "Migrations directory does not exist: $migrationsDir\n";
+  }
+
+  open(my $fh, '>', $filepath) or die "Cannot create migration file: $!";
+  print $fh "-- Migration: $filename\n";
+  print $fh "-- Description: $createMigration\n";
+  print $fh "-- Created: ".strftime('%Y-%m-%d %H:%M:%S', localtime())."\n";
+  print $fh "--\n";
+  print $fh "-- Add your SQL statements below:\n";
+  print $fh "\n";
+  close($fh);
+
+  print("Created new migration file: $filepath\n");
+  exit(0);
+}
+
+# Handle --status option to show migration status
+if ( $showStatus ) {
+  print("\n=== ZoneMinder Migration Status ===\n\n");
+
+  if (isNewMigrationSystem($dbh)) {
+    print("Migration System: New (Schema_Migrations table)\n\n");
+
+    my @applied = getAppliedMigrations($dbh);
+    my @pending = discoverPendingMigrations($dbh);
+
+    print("Applied migrations: ".scalar(@applied)."\n");
+    print("Pending migrations: ".scalar(@pending)."\n\n");
+
+    if (@pending) {
+      print("Pending migrations:\n");
+      foreach my $m (@pending) {
+        print("  - $m\n");
+      }
+      print("\nRun zmupdate.pl to apply pending migrations.\n");
+    } else {
+      print("Database is up to date.\n");
+    }
+  } else {
+    print("Migration System: Legacy (version-based)\n");
+    print("Current DB Version: $Config{ZM_DYN_DB_VERSION}\n");
+    print("Software Version: ".ZM_VERSION."\n\n");
+
+    if ($Config{ZM_DYN_DB_VERSION} ne ZM_VERSION) {
+      print("Database needs upgrade. Run zmupdate.pl to upgrade.\n");
+    } else {
+      print("Database is up to date.\n");
+    }
+  }
+
+  zmDbDisconnect();
+  exit(0);
+}
+
+# Handle --pending option to list pending migrations only
+if ( $showPending ) {
+  if (isNewMigrationSystem($dbh)) {
+    my @pending = discoverPendingMigrations($dbh);
+    if (@pending) {
+      foreach my $m (@pending) {
+        print("$m\n");
+      }
+    }
+  } else {
+    # For legacy system, show if upgrade is needed
+    if ($Config{ZM_DYN_DB_VERSION} ne ZM_VERSION) {
+      print("legacy_upgrade_needed\n");
+    }
+  }
+  zmDbDisconnect();
+  exit(0);
+}
 
 if ( $version ) {
   my ( $detaint_version ) = $version =~ /^([\w.]+)$/;
@@ -917,17 +1016,17 @@ if ( $version ) {
   if ( $version ge '1.26.0' ) {
 
     my @files;
-    opendir( my $dh, $updateDir ) || die "Can't open updateDir $!";
-#@files = sort grep { (!/^\./) && /^zm_update\-[\d\.]+\.sql$/ && -f "$updateDir/$_" } readdir($dh);
+    opendir( my $dh, $legacyDir ) || die "Can't open legacyDir $legacyDir: $!";
+#@files = sort grep { (!/^\./) && /^zm_update\-[\d\.]+\.sql$/ && -f "$legacyDir/$_" } readdir($dh);
 #PP - use perl version sort
-    @files = sort { 
+    @files = sort {
       my ($x) = ($a =~ m/^zm_update\-(.*)\.sql$/);
       my ($y) = ($b =~ m/^zm_update\-(.*)\.sql$/);
       version->parse($x)  <=> version->parse($y)
-    } grep { (!/^\./) && /^zm_update\-[\d\.]+\.sql$/ && -f "$updateDir/$_" } readdir($dh);
+    } grep { (!/^\./) && /^zm_update\-[\d\.]+\.sql$/ && -f "$legacyDir/$_" } readdir($dh);
     closedir $dh;
     if ( ! @files ) {
-      die "Should have found upgrade scripts at $updateDir\n";
+      die "Should have found upgrade scripts at $legacyDir\n";
     } # end if
 
     my $sql = "UPDATE `Config` SET `Value` = ? WHERE `Name` = 'ZM_DYN_DB_VERSION'";
@@ -950,22 +1049,30 @@ if ( $version ) {
   } # end if
 
   if ( $cascade ) {
-    # This is basically here so that we don't need zm-update-blah.sql files for versions without db changes
+    # Legacy migrations completed - now bootstrap to new migration system
+    if (!isNewMigrationSystem($dbh)) {
+      print("\n=== Transitioning to new migration system ===\n");
+      bootstrapMigrations($dbh, ZM_VERSION);
+    }
+
+    # Apply any pending new migrations
+    my @pending = discoverPendingMigrations($dbh);
+    if (@pending) {
+      print("\n=== Applying new migrations ===\n");
+      applyPendingMigrations($dbh);
+    }
+
+    # ZM_DYN_DB_VERSION is now deprecated - only used for legacy detection
+    # We still set it for backwards compatibility during transition period
     my $sql = 'UPDATE `Config` SET `Value` = ? WHERE `Name` = ?';
     my $sth = $dbh->prepare_cached( $sql ) or die( "Can't prepare '$sql': ".$dbh->errstr() );
-    $sth->execute(ZM_VERSION, 'ZM_DYN_DB_VERSION') or die( "Can't execute: ".$sth->errstr() );
     $sth->execute(ZM_VERSION, 'ZM_DYN_CURR_VERSION') or die( "Can't execute: ".$sth->errstr() );
     $sth->finish();
   } else {
     zmDbDisconnect();
     die( "Can't find upgrade from version '$version'" );
   }
-  # Re-enable the privacy popup after each upgrade
-  #my $sql = "update Config set Value = 1 where Name = 'ZM_SHOW_PRIVACY'";
-  #my $sth = $dbh->prepare_cached( $sql ) or die( "Can't prepare '$sql': ".$dbh->errstr() );
-  #my $res = $sth->execute( ) or die( "Can't execute: ".$sth->errstr() );
-  #$sth->finish();
-  
+
   print("\nDatabase upgrade to version ".ZM_VERSION." successful.\n\n");
   if ( $start_zm ) {
     print("Starting ZM since we stopped it for the update\n");
@@ -1023,7 +1130,7 @@ sub patchDB {
   } elsif ( $host ) {
     $command .= ' -h'.$host;
   }
-  $command .= ' '.$Config{ZM_DB_NAME}.' < '.$updateDir.'/zm_update-'.$version.'.sql';
+  $command .= ' '.$Config{ZM_DB_NAME}.' < '.$legacyDir.'/zm_update-'.$version.'.sql';
 
   print("Executing '$command'\n") if logDebugging();
   ($command) = $command =~ /(.*)/; # detaint
@@ -1127,6 +1234,240 @@ sub migratePaths {
       chmod 0640, $customConfigFile;
     }
   }
+}
+
+# ============================================================================
+# New Migration System Functions
+# ============================================================================
+
+# Check if the new migration system (Schema_Migrations table) is in use
+sub isNewMigrationSystem {
+  my $dbh = shift;
+  my $sql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+             WHERE table_schema = DATABASE() AND table_name = 'Schema_Migrations'";
+  my $sth = $dbh->prepare_cached($sql);
+  $sth->execute();
+  my ($count) = $sth->fetchrow_array();
+  $sth->finish();
+  return $count > 0;
+}
+
+# Get list of applied migrations from Schema_Migrations table
+sub getAppliedMigrations {
+  my $dbh = shift;
+  my @applied;
+
+  if (!isNewMigrationSystem($dbh)) {
+    return @applied;
+  }
+
+  my $sql = "SELECT Migration FROM Schema_Migrations ORDER BY Id";
+  my $sth = $dbh->prepare_cached($sql);
+  $sth->execute();
+  while (my ($migration) = $sth->fetchrow_array()) {
+    push @applied, $migration;
+  }
+  $sth->finish();
+  return @applied;
+}
+
+# Get list of legacy migration files in sorted order
+sub getLegacyMigrationFiles {
+  my @files;
+
+  return @files if ! -d $legacyDir;
+
+  opendir(my $dh, $legacyDir) || return @files;
+  @files = sort {
+    my ($x) = ($a =~ m/^zm_update\-(.*)\.sql$/);
+    my ($y) = ($b =~ m/^zm_update\-(.*)\.sql$/);
+    version->parse($x) <=> version->parse($y)
+  } grep { (!/^\./) && /^zm_update\-[\d\.]+\.sql$/ && -f "$legacyDir/$_" } readdir($dh);
+  closedir $dh;
+
+  return @files;
+}
+
+# Get list of new migration files in sorted order
+sub getNewMigrationFiles {
+  my @files;
+
+  return @files if ! -d $migrationsDir;
+
+  opendir(my $dh, $migrationsDir) || return @files;
+  @files = sort grep { (!/^\./) && /^\d{8}_\d{6}_.*\.sql$/ && -f "$migrationsDir/$_" } readdir($dh);
+  closedir $dh;
+
+  return @files;
+}
+
+# Discover pending migrations (new-style only)
+sub discoverPendingMigrations {
+  my $dbh = shift;
+  my @pending;
+
+  my %applied = map { $_ => 1 } getAppliedMigrations($dbh);
+  my @newMigrations = getNewMigrationFiles();
+
+  foreach my $file (@newMigrations) {
+    my ($name) = $file =~ /^(.*)\.sql$/;
+    if (!$applied{$name}) {
+      push @pending, $name;
+    }
+  }
+
+  return @pending;
+}
+
+# Bootstrap the new migration system from legacy version tracking
+sub bootstrapMigrations {
+  my $dbh = shift;
+  my $legacyVersion = shift;
+
+  print("Bootstrapping new migration system from legacy version $legacyVersion\n");
+
+  # First, apply the bootstrap migration SQL to create the table
+  my $bootstrapFile = "$migrationsDir/00000000_000000_bootstrap.sql";
+  if (-f $bootstrapFile) {
+    applyMigrationFile($dbh, $bootstrapFile);
+  } else {
+    # Create table directly if bootstrap file not found
+    my $sql = q{
+      CREATE TABLE IF NOT EXISTS `Schema_Migrations` (
+        `Id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+        `Migration` varchar(128) NOT NULL,
+        `AppliedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `Batch` int(10) unsigned NOT NULL DEFAULT 1,
+        `ExecutionTimeMs` int(10) unsigned DEFAULT NULL,
+        `Checksum` char(32) DEFAULT NULL,
+        PRIMARY KEY (`Id`),
+        UNIQUE KEY `Migration_UNIQUE` (`Migration`)
+      ) ENGINE=InnoDB
+    };
+    $dbh->do($sql) or die("Failed to create Schema_Migrations table: ".$dbh->errstr());
+  }
+
+  # Get all legacy migration files
+  my @legacyFiles = getLegacyMigrationFiles();
+
+  # Insert records for all migrations <= legacyVersion
+  my $insertSql = "INSERT IGNORE INTO Schema_Migrations (Migration, Batch) VALUES (?, 0)";
+  my $sth = $dbh->prepare_cached($insertSql);
+
+  foreach my $file (@legacyFiles) {
+    my ($v) = $file =~ /^zm_update\-([\d\.]+)\.sql$/;
+    if (version->parse("v$v") <= version->parse("v$legacyVersion")) {
+      my $migrationName = "legacy_$v";
+      $sth->execute($migrationName);
+      print("  Recorded legacy migration: $migrationName\n") if logDebugging();
+    }
+  }
+  $sth->finish();
+
+  # Record the bootstrap migration itself
+  $sth = $dbh->prepare_cached($insertSql);
+  $sth->execute("00000000_000000_bootstrap");
+  $sth->finish();
+
+  print("Bootstrap complete. ".scalar(@legacyFiles)." legacy migrations recorded.\n");
+}
+
+# Apply a migration file using mysql command
+sub applyMigrationFile {
+  my $dbh = shift;
+  my $filepath = shift;
+
+  my ( $host, $portOrSocket ) = ( $Config{ZM_DB_HOST} =~ /^([^:]+)(?::(.+))?$/ ) if $Config{ZM_DB_HOST};
+  my $command = 'mysql';
+  if ($super) {
+    $command .= ' --defaults-file=/etc/mysql/debian.cnf';
+  } elsif ($dbUser) {
+    $command .= ' -u\''.$dbUser.'\'';
+    $command .= ' -p\''.$dbPass.'\'' if $dbPass;
+  }
+  if ( defined($portOrSocket) ) {
+    if ( $portOrSocket =~ /^\// ) {
+      $command .= ' -S'.$portOrSocket;
+    } else {
+      $command .= ' -h'.$host.' -P'.$portOrSocket;
+    }
+  } elsif ( $host ) {
+    $command .= ' -h'.$host;
+  }
+  $command .= ' '.$Config{ZM_DB_NAME}.' < '.$filepath;
+
+  print("Executing '$command'\n") if logDebugging();
+  ($command) = $command =~ /(.*)/; # detaint
+  my $output = qx($command);
+  my $status = $? >> 8;
+  if ( $status || logDebugging() ) {
+    chomp($output);
+    print("Output: $output\n") if $output;
+  }
+  if ( $status ) {
+    die("Command '$command' exited with status: $status\n");
+  }
+  return 1;
+}
+
+# Apply a new-style migration and record it
+sub applyNewMigration {
+  my $dbh = shift;
+  my $migrationName = shift;
+
+  my $filepath = "$migrationsDir/${migrationName}.sql";
+  if (! -f $filepath) {
+    die("Migration file not found: $filepath\n");
+  }
+
+  print("Applying migration: $migrationName\n");
+
+  my $startTime = time();
+  applyMigrationFile($dbh, $filepath);
+  my $elapsed = (time() - $startTime) * 1000;
+
+  # Calculate checksum
+  my $checksum = '';
+  if (open(my $fh, '<', $filepath)) {
+    require Digest::MD5;
+    $checksum = Digest::MD5->new->addfile($fh)->hexdigest;
+    close($fh);
+  }
+
+  # Get next batch number
+  my $batchSql = "SELECT COALESCE(MAX(Batch), 0) + 1 FROM Schema_Migrations";
+  my $sth = $dbh->prepare_cached($batchSql);
+  $sth->execute();
+  my ($batch) = $sth->fetchrow_array();
+  $sth->finish();
+
+  # Record the migration
+  my $insertSql = "INSERT INTO Schema_Migrations (Migration, Batch, ExecutionTimeMs, Checksum) VALUES (?, ?, ?, ?)";
+  $sth = $dbh->prepare_cached($insertSql);
+  $sth->execute($migrationName, $batch, $elapsed, $checksum);
+  $sth->finish();
+
+  print("Migration $migrationName applied successfully.\n");
+  return 1;
+}
+
+# Apply all pending new migrations
+sub applyPendingMigrations {
+  my $dbh = shift;
+
+  my @pending = discoverPendingMigrations($dbh);
+  if (!@pending) {
+    print("No pending migrations.\n");
+    return 0;
+  }
+
+  print("Found ".scalar(@pending)." pending migration(s).\n");
+
+  foreach my $migration (@pending) {
+    applyNewMigration($dbh, $migration);
+  }
+
+  return scalar(@pending);
 }
 
 1;
