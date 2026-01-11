@@ -246,6 +246,47 @@ export class VideoRTC extends HTMLElement {
         this.video.style.height = '100%';
         this.video.muted = this.muted;
 
+        // Apply CSS rotation based on orientation attribute
+        // ZoneMinder's ViewWidth/ViewHeight already swap dimensions for 90/270 rotation,
+        // so the container is sized for the rotated output.
+        const orientation = this.getAttribute('orientation');
+        if (orientation === 'ROTATE_90' || orientation === 'ROTATE_270') {
+            const angle = orientation === 'ROTATE_90' ? 90 : -90;
+            // For 90/270 rotation, apply transform after video loads so we know actual dimensions
+            this.video.addEventListener('loadedmetadata', () => {
+                const videoWidth = this.video.videoWidth;
+                const videoHeight = this.video.videoHeight;
+                const containerWidth = this.clientWidth || this.parentElement.clientWidth;
+                const containerHeight = this.clientHeight || this.parentElement.clientHeight;
+
+                // Calculate scale to fit rotated video in container
+                // After rotation, video's visual dimensions are swapped
+                const rotatedWidth = videoHeight;  // After 90° rotation
+                const rotatedHeight = videoWidth;
+                const scaleX = containerWidth / rotatedWidth;
+                const scaleY = containerHeight / rotatedHeight;
+                const scale = Math.min(scaleX, scaleY);
+
+                this.video.style.transform = `rotate(${angle}deg) scale(${scale})`;
+                this.video.style.transformOrigin = 'center center';
+                // Remove 100% sizing to use natural video dimensions for transform
+                this.video.style.width = 'auto';
+                this.video.style.height = 'auto';
+                // Center the video in container
+                this.video.style.position = 'absolute';
+                this.video.style.top = '50%';
+                this.video.style.left = '50%';
+                this.video.style.marginTop = `-${videoHeight / 2}px`;
+                this.video.style.marginLeft = `-${videoWidth / 2}px`;
+            }, {once: true});
+            // Make container position relative for absolute positioning
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+        } else if (orientation === 'ROTATE_180') {
+            this.video.style.transform = 'rotate(180deg)';
+            this.video.style.transformOrigin = 'center center';
+        }
+
         this.appendChild(this.video);
 
         // all Safari lies about supported audio codecs

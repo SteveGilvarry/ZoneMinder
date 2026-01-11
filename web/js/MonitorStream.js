@@ -19,6 +19,7 @@ function MonitorStream(monitorData) {
   this.RTSP2WebType = null;
   this.RTSP2WebStream = monitorData.RTSP2WebStream;
   this.Go2RTCEnabled = monitorData.Go2RTCEnabled;
+  this.orientation = monitorData.orientation || 'ROTATE_0';
   this.Go2RTCMSEBufferCleared = true;
   this.currentChannelStream = null;
   this.MSEBufferCleared = true;
@@ -362,6 +363,7 @@ function MonitorStream(monitorData) {
         stream.style = old_stream.style; // Copy any applied styles
         stream.background = true; // We do not use the document hiding/showing analysis from "video-rtc.js", because we have our own analysis
         stream.muted = this.muted;
+        stream.setAttribute('orientation', this.orientation);
         const Go2RTCModUrl = url;
         const webrtcUrl = Go2RTCModUrl;
         this.currentChannelStream = (streamChannel == 'default') ? ((this.RTSP2WebStream == 'Secondary') ? 1 : 0) : streamChannel;

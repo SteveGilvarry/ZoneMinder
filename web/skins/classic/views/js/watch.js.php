@@ -45,6 +45,7 @@ monitorData[monitorData.length] = {
   'DefaultPlayer':'<?php echo $m->DefaultPlayer() ?>',
   'RTSP2WebStream':'<?php echo $m->RTSP2WebStream() ?>',
   'Go2RTCEnabled': <?php echo $m->Go2RTCEnabled() ?>,
+  'orientation': '<?php echo $m->Orientation() ?>',
   'SecondPath':'<?php echo $m->SecondPath() ?>',
   'janusEnabled':<?php echo $m->JanusEnabled() ?>,
   'url': '<?php echo $m->UrlToIndex(ZM_MIN_STREAMING_PORT ? ($m->Id() + ZM_MIN_STREAMING_PORT) : '') ?>',
