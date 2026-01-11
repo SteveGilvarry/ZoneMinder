@@ -252,36 +252,69 @@ export class VideoRTC extends HTMLElement {
         const orientation = this.getAttribute('orientation');
         if (orientation === 'ROTATE_90' || orientation === 'ROTATE_270') {
             const angle = orientation === 'ROTATE_90' ? 90 : -90;
-            // For 90/270 rotation, apply transform after video loads so we know actual dimensions
-            this.video.addEventListener('loadedmetadata', () => {
+            // Disable native controls for rotated video - they would rotate too
+            // ZoneMinder has its own control bar below the video
+            this.video.controls = false;
+
+            // Function to apply rotation once we have video dimensions
+            const applyRotation = () => {
                 const videoWidth = this.video.videoWidth;
                 const videoHeight = this.video.videoHeight;
-                const containerWidth = this.clientWidth || this.parentElement.clientWidth;
-                const containerHeight = this.clientHeight || this.parentElement.clientHeight;
+
+                // Wait until we have actual video dimensions
+                if (!videoWidth || !videoHeight) {
+                    console.log('VideoRTC rotation: waiting for video dimensions...');
+                    return false;
+                }
+
+                // Get container size - use parent if this element has no size yet
+                let containerWidth = this.clientWidth;
+                let containerHeight = this.clientHeight;
+                if (!containerWidth || !containerHeight) {
+                    const parent = this.parentElement;
+                    containerWidth = parent ? parent.clientWidth : videoHeight;
+                    containerHeight = parent ? parent.clientHeight : videoWidth;
+                }
                 console.log('VideoRTC rotation: video=' + videoWidth + 'x' + videoHeight +
                     ', container=' + containerWidth + 'x' + containerHeight);
 
-                // Calculate scale to fit rotated video in container
                 // After rotation, video's visual dimensions are swapped
-                const rotatedWidth = videoHeight;  // After 90° rotation
+                const rotatedWidth = videoHeight;
                 const rotatedHeight = videoWidth;
+
+                // Calculate scale to fit rotated video in container
                 const scaleX = containerWidth / rotatedWidth;
                 const scaleY = containerHeight / rotatedHeight;
                 const scale = Math.min(scaleX, scaleY);
+                console.log('VideoRTC rotation: scale=' + scale + ' (scaleX=' + scaleX + ', scaleY=' + scaleY + ')');
 
-                // Use translate(-50%, -50%) for proper centering with absolute positioning
-                this.video.style.transform = `translate(-50%, -50%) rotate(${angle}deg) scale(${scale})`;
+                // Apply rotation and scaling
+                this.video.style.transform = `rotate(${angle}deg) scale(${scale})`;
                 this.video.style.transformOrigin = 'center center';
-                // Use natural video dimensions
-                this.video.style.width = 'auto';
-                this.video.style.height = 'auto';
-                // Position at center of container
-                this.video.style.position = 'absolute';
-                this.video.style.top = '50%';
-                this.video.style.left = '50%';
-            }, {once: true});
-            // Make container position relative for absolute positioning
-            this.style.position = 'relative';
+                // Center video in container using flexbox on parent
+                this.video.style.width = videoWidth + 'px';
+                this.video.style.height = videoHeight + 'px';
+                this.video.style.margin = 'auto';
+                this.style.display = 'flex';
+                this.style.justifyContent = 'center';
+                this.style.alignItems = 'center';
+                return true;
+            };
+
+            // Try multiple events since WebRTC may not have dimensions at loadedmetadata
+            const tryApplyRotation = () => {
+                if (!applyRotation()) {
+                    // Retry after a short delay if dimensions not ready
+                    setTimeout(tryApplyRotation, 100);
+                }
+            };
+
+            // Listen for various events that indicate video is ready
+            this.video.addEventListener('loadeddata', tryApplyRotation, {once: true});
+            this.video.addEventListener('canplay', tryApplyRotation, {once: true});
+            // Also try on resize in case dimensions change
+            this.video.addEventListener('resize', () => applyRotation());
+
             this.style.overflow = 'hidden';
         } else if (orientation === 'ROTATE_180') {
             this.video.style.transform = 'rotate(180deg)';
