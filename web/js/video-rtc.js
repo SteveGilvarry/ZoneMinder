@@ -267,26 +267,55 @@ export class VideoRTC extends HTMLElement {
                     return false;
                 }
 
-                // Get container size - use parent if this element has no size yet
-                let containerWidth = this.clientWidth;
-                let containerHeight = this.clientHeight;
-                if (!containerWidth || !containerHeight) {
-                    const parent = this.parentElement;
-                    containerWidth = parent ? parent.clientWidth : videoHeight;
-                    containerHeight = parent ? parent.clientHeight : videoWidth;
+                // Get container size from parent elements (zoompan or imageFeed)
+                // Don't use this.clientWidth as it may reflect the video size, not the layout container
+                let containerWidth = 0;
+                let containerHeight = 0;
+                let parent = this.parentElement;
+                // Walk up to find a parent with reasonable dimensions (zoompan or imageFeed)
+                while (parent && (!containerWidth || containerWidth > 2000)) {
+                    if (parent.classList && (parent.classList.contains('zoompan') ||
+                        parent.classList.contains('imageFeed') ||
+                        parent.classList.contains('monitorStream'))) {
+                        containerWidth = parent.clientWidth;
+                        containerHeight = parent.clientHeight;
+                        // For montage, use the grid item width as the constraining dimension
+                        const gridItem = parent.closest('.grid-stack-item-content');
+                        if (gridItem) {
+                            containerWidth = gridItem.clientWidth;
+                        }
+                        break;
+                    }
+                    parent = parent.parentElement;
                 }
+                // Fallback to swapped video dimensions if still no container
+                if (!containerWidth) containerWidth = videoHeight;
+                if (!containerHeight) containerHeight = videoWidth;
                 console.log('VideoRTC rotation: video=' + videoWidth + 'x' + videoHeight +
                     ', container=' + containerWidth + 'x' + containerHeight);
 
                 // After rotation, video's visual dimensions are swapped
-                const rotatedWidth = videoHeight;
-                const rotatedHeight = videoWidth;
+                const rotatedWidth = videoHeight;   // visual width after rotation
+                const rotatedHeight = videoWidth;   // visual height after rotation
+                const rotatedAspect = rotatedWidth / rotatedHeight;
 
                 // Calculate scale to fit rotated video in container
+                // For portrait videos (rotatedAspect < 1), width is usually the constraint
                 const scaleX = containerWidth / rotatedWidth;
                 const scaleY = containerHeight / rotatedHeight;
-                const scale = Math.min(scaleX, scaleY);
-                console.log('VideoRTC rotation: scale=' + scale + ' (scaleX=' + scaleX + ', scaleY=' + scaleY + ')');
+                // Use width-based scaling for portrait, but cap at container height
+                let scale;
+                const fittedHeight = containerWidth / rotatedAspect;
+                if (fittedHeight <= containerHeight) {
+                    // Width-constrained: fits within container height
+                    scale = scaleX;
+                } else {
+                    // Height-constrained
+                    scale = scaleY;
+                }
+                console.log('VideoRTC rotation: scale=' + scale.toFixed(4) +
+                    ' (scaleX=' + scaleX.toFixed(4) + ', scaleY=' + scaleY.toFixed(4) +
+                    ', fittedHeight=' + fittedHeight.toFixed(0) + ')');
 
                 // Apply rotation and scaling
                 this.video.style.transform = `rotate(${angle}deg) scale(${scale})`;
