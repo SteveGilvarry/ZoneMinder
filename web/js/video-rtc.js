@@ -258,6 +258,8 @@ export class VideoRTC extends HTMLElement {
                 const videoHeight = this.video.videoHeight;
                 const containerWidth = this.clientWidth || this.parentElement.clientWidth;
                 const containerHeight = this.clientHeight || this.parentElement.clientHeight;
+                console.log('VideoRTC rotation: video=' + videoWidth + 'x' + videoHeight +
+                    ', container=' + containerWidth + 'x' + containerHeight);
 
                 // Calculate scale to fit rotated video in container
                 // After rotation, video's visual dimensions are swapped
@@ -267,17 +269,16 @@ export class VideoRTC extends HTMLElement {
                 const scaleY = containerHeight / rotatedHeight;
                 const scale = Math.min(scaleX, scaleY);
 
-                this.video.style.transform = `rotate(${angle}deg) scale(${scale})`;
+                // Use translate(-50%, -50%) for proper centering with absolute positioning
+                this.video.style.transform = `translate(-50%, -50%) rotate(${angle}deg) scale(${scale})`;
                 this.video.style.transformOrigin = 'center center';
-                // Remove 100% sizing to use natural video dimensions for transform
+                // Use natural video dimensions
                 this.video.style.width = 'auto';
                 this.video.style.height = 'auto';
-                // Center the video in container
+                // Position at center of container
                 this.video.style.position = 'absolute';
                 this.video.style.top = '50%';
                 this.video.style.left = '50%';
-                this.video.style.marginTop = `-${videoHeight / 2}px`;
-                this.video.style.marginLeft = `-${videoWidth / 2}px`;
             }, {once: true});
             // Make container position relative for absolute positioning
             this.style.position = 'relative';
