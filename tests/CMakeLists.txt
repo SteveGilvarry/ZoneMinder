@@ -21,6 +21,7 @@ set(TEST_SOURCES
   zm_onvif_renewal.cpp
   zm_pixformat.cpp
   zm_poly.cpp
+  zm_stream_socket.cpp
   zm_stream_socket_protocol.cpp
   zm_time.cpp
   zm_utils.cpp
