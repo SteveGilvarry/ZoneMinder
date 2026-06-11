@@ -1221,8 +1221,8 @@ bool Monitor::connect() {
     }
     *alarm_image_pixelformat = AV_PIX_FMT_NONE;
     shared_data->alarm_cause[0] = 0;
-    shared_data->video_fifo_path[0] = 0;
-    shared_data->audio_fifo_path[0] = 0;
+    shared_data->reserved_path1[0] = 0;
+    shared_data->reserved_path2[0] = 0;
     shared_data->janus_pin[0] = 0;
     shared_data->last_frame_score = 0;
     shared_data->audio_frequency = -1;
