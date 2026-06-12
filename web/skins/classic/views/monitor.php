@@ -855,30 +855,29 @@ include('_monitor_source_nvsocket.php');
           <li class="Decoder">
             <label><?php echo translate('Decoder') ?></label>
 <?php
+// Decoder names only. Encoder names (libx264, libx265, libsvtav1, h264_omx)
+// and hwaccels that are not decoders (h264_vaapi, hevc_vaapi) must not be
+// offered here: vaapi decoding is selected by leaving this on Auto and
+// setting DecoderHWAccelName instead.
 $decoders = array(
   'auto' => translate('Auto'),
-  'libx264' => 'libx264',
   'h264' => 'h264',
   'h264_cuvid' => 'h264_cuvid',
   'h264_nvmpi' => 'h264_nvmpi',
   'h264_mmal'   => 'h264_mmal',
-  'h264_omx' => 'h264_omx',
   'h264_qsv' => 'h264_qsv',
-  'h264_vaapi' => 'h264_vaapi',
   'h264_v4l2m2m' => 'h264_v4l2m2m',
-  'libx265' => 'libx265',
   'hevc' => 'hevc',
   'hevc_cuvid' => 'hevc_cuvid',
   'hevc_nvmpi' => 'hevc_nvmpi',
   'hevc_qsv' => 'hevc_qsv',
-  'hevc_vaapi' => 'hevc_vaapi',
+  'hevc_v4l2m2m' => 'hevc_v4l2m2m',
   'vp8_nvmpi' => 'vp8_nvmpi',
   'libvpx-vp9' => 'libvpx-vp9',
-  'vp9_qsv' => 'vp9-qsv',
+  'vp9_qsv' => 'vp9_qsv',
   'vp9_cuvid' => 'vp9_cuvid',
   'vp9_nvmpi' => 'vp9_nvmpi',
   'vp9_v4l2m2m' => 'vp9_v4l2m2m',
-  'libsvtav1' => 'libsvtav1',
   'libaom-av1'  => 'libaom-av1',
   'libdav1d'    => 'libdav1d',
   'av1' => 'av1',
