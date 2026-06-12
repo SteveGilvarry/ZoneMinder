@@ -73,6 +73,9 @@ if [ "$1" = "configure" ]; then
   # Allow zoneminder access to local video sources and serial ports
   adduser --quiet www-data video || true
   adduser --quiet www-data dialout || true
+  # GPU render nodes (/dev/dri/renderD*) are root:render; without this VAAPI
+  # and QSV hardware decode fail with permission denied
+  adduser --quiet www-data render || true
 
   if [ ! -e "/etc/apache2/mods-enabled/cgi.load" ] && [ "$(command -v a2enmod)" != "" ]; then
     echo "The cgi module is not enabled in apache2.  I am enabling it using a2enmod cgi."
