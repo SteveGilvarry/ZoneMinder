@@ -285,6 +285,11 @@ int FfmpegCamera::PostCapture() {
 int FfmpegCamera::OpenFfmpeg() {
   int ret = 0;
   error_count = 0;
+  // Retry hwaccel on every open: a failure latches use_hwaccel off for the
+  // rest of this open (so later candidates don't retry), but a transient
+  // problem must not disable hwaccel for the lifetime of the process.
+  use_hwaccel = true;
+  hw_pix_fmt = AV_PIX_FMT_NONE;
 
 #if LIBAVFORMAT_VERSION_CHECK(59, 16, 100, 16, 100)
   const
@@ -423,10 +428,10 @@ int FfmpegCamera::OpenFfmpeg() {
         mVideoStreamId, mAudioStreamId);
 
   const AVCodec *mVideoCodec = nullptr;
-  std::list<const CodecData *>codec_data = get_decoder_data(mVideoStream->codecpar->codec_id, monitor->DecoderName().c_str());
+  std::list<const CodecData *>codec_data = get_decoder_data(mVideoStream->codecpar->codec_id, monitor->DecoderName().c_str(), hwaccel_name);
   if (codec_data.size() == 0 and (!monitor->DecoderName().empty() and (monitor->DecoderName() != "auto"))) {
     Warning("No decoder for codec %d found with name %s. Trying auto.", mVideoStream->codecpar->codec_id, monitor->DecoderName().c_str());
-    codec_data = get_decoder_data(mVideoStream->codecpar->codec_id, "auto");
+    codec_data = get_decoder_data(mVideoStream->codecpar->codec_id, "auto", hwaccel_name);
   }
 
   for (auto it = codec_data.begin(); it != codec_data.end(); it ++) {
@@ -492,74 +497,76 @@ int FfmpegCamera::OpenFfmpeg() {
 #if HAVE_LIBAVUTIL_HWCONTEXT_H
       // 3.2 doesn't seem to have all the bits in place, so let's require 3.4 and up
 #if LIBAVCODEC_VERSION_CHECK(57, 107, 0, 107, 0)
-      // Print out available types
-      enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
-      while ((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE)
-        Debug(1, "%s", av_hwdevice_get_type_name(type));
-
-      const char *hw_name = hwaccel_name.c_str();
-      type = av_hwdevice_find_type_by_name(hw_name);
+      enum AVHWDeviceType type = av_hwdevice_find_type_by_name(hwaccel_name.c_str());
       if (type == AV_HWDEVICE_TYPE_NONE) {
-        Debug(1, "Device type %s is not supported.", hw_name);
+        std::string available_types;
+        enum AVHWDeviceType t = AV_HWDEVICE_TYPE_NONE;
+        while ((t = av_hwdevice_iterate_types(t)) != AV_HWDEVICE_TYPE_NONE) {
+          if (!available_types.empty()) available_types += ", ";
+          available_types += av_hwdevice_get_type_name(t);
+        }
+        Warning("Hwaccel %s is not supported by this build of ffmpeg (available: %s). Falling back to software decode.",
+            hwaccel_name.c_str(), available_types.c_str());
+        use_hwaccel = false;
       } else {
         Debug(1, "Found hwdevice %s", av_hwdevice_get_type_name(type));
-      }
 
 #if LIBAVUTIL_VERSION_CHECK(56, 22, 0, 14, 0)
-      // Get hw_pix_fmt
-      for (int i = 0;; i++) {
-        const AVCodecHWConfig *config = avcodec_get_hw_config(mVideoCodec, i);
-        if (!config) {
-          Debug(1, "Decoder %s does not support config %d.",
-              mVideoCodec->name, i);
-          break;
-        }
-        if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)
-            && (config->device_type == type)
-           ) {
-          hw_pix_fmt = config->pix_fmt;
-          Debug(1, "Decoder %s does support our type %s.",
-              mVideoCodec->name, av_hwdevice_get_type_name(type));
-          //break;
-        } else {
+        // Get hw_pix_fmt
+        for (int i = 0;; i++) {
+          const AVCodecHWConfig *config = avcodec_get_hw_config(mVideoCodec, i);
+          if (!config) break;  // end of the decoder's hw config list
+          if ((config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)
+              && (config->device_type == type)
+             ) {
+            hw_pix_fmt = config->pix_fmt;
+            Debug(1, "Decoder %s does support our type %s.",
+                mVideoCodec->name, av_hwdevice_get_type_name(type));
+            break;
+          }
           Debug(1, "Decoder %s hwConfig doesn't match our type: %s != %s, pix_fmt %s.",
               mVideoCodec->name,
               av_hwdevice_get_type_name(type),
               av_hwdevice_get_type_name(config->device_type),
               zm_get_pix_fmt_name(config->pix_fmt)
               );
-        }
-      }  // end foreach hwconfig
+        }  // end foreach hwconfig
 #else
-      hw_pix_fmt = find_fmt_by_hw_type(type);
+        hw_pix_fmt = find_fmt_by_hw_type(type);
 #endif
-      if (hw_pix_fmt != AV_PIX_FMT_NONE) {
-        Debug(1, "Selected hw_pix_fmt %d %s",
-            hw_pix_fmt, zm_get_pix_fmt_name(hw_pix_fmt));
+        if (hw_pix_fmt != AV_PIX_FMT_NONE) {
+          Debug(1, "Selected hw_pix_fmt %d %s",
+              hw_pix_fmt, zm_get_pix_fmt_name(hw_pix_fmt));
 
-        mVideoCodecContext->hwaccel_flags |= AV_HWACCEL_FLAG_IGNORE_LEVEL;
-        //if (!lavc_param->check_hw_profile)
-        mVideoCodecContext->hwaccel_flags |= AV_HWACCEL_FLAG_ALLOW_PROFILE_MISMATCH;
+          mVideoCodecContext->hwaccel_flags |= AV_HWACCEL_FLAG_IGNORE_LEVEL;
+          //if (!lavc_param->check_hw_profile)
+          mVideoCodecContext->hwaccel_flags |= AV_HWACCEL_FLAG_ALLOW_PROFILE_MISMATCH;
 
-        ret = av_hwdevice_ctx_create(&hw_device_ctx, type,
-            (hwaccel_device != "" ? hwaccel_device.c_str() : nullptr), nullptr, 0);
-        if (ret < 0 and hwaccel_device != "") {
-          ret = av_hwdevice_ctx_create(&hw_device_ctx, type, nullptr, nullptr, 0);
-        }
-        if (ret < 0) {
-          Error("Failed to create hwaccel device. %s", av_make_error_string(ret).c_str());
-          hw_pix_fmt = AV_PIX_FMT_NONE;
-          use_hwaccel = false;
+          ret = av_hwdevice_ctx_create(&hw_device_ctx, type,
+              (hwaccel_device != "" ? hwaccel_device.c_str() : nullptr), nullptr, 0);
+          if (ret < 0 and hwaccel_device != "") {
+            ret = av_hwdevice_ctx_create(&hw_device_ctx, type, nullptr, nullptr, 0);
+          }
+          if (ret < 0) {
+            Error("Failed to create %s hwaccel device %s. %s. Falling back to software decode.",
+                av_hwdevice_get_type_name(type),
+                (hwaccel_device != "" ? hwaccel_device.c_str() : "(default)"),
+                av_make_error_string(ret).c_str());
+            hw_pix_fmt = AV_PIX_FMT_NONE;
+            use_hwaccel = false;
+          } else {
+            Debug(1, "Created %s hwdevice %s", av_hwdevice_get_type_name(type),
+                (hwaccel_device != "" ? hwaccel_device.c_str() : "(default)"));
+            // Set opaque to point to our hw_pix_fmt so callback can access it
+            mVideoCodecContext->opaque = &hw_pix_fmt;
+            mVideoCodecContext->get_format = get_hw_format;
+            mVideoCodecContext->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+          }
         } else {
-          Debug(1, "Created hwdevice for %s", hwaccel_device.c_str());
-          // Set opaque to point to our hw_pix_fmt so callback can access it
-          mVideoCodecContext->opaque = &hw_pix_fmt;
-          mVideoCodecContext->get_format = get_hw_format;
-          mVideoCodecContext->hw_device_ctx = av_buffer_ref(hw_device_ctx);
+          Warning("Decoder %s does not support hwaccel %s. Falling back to software decode.",
+              mVideoCodec->name, hwaccel_name.c_str());
         }
-      } else {
-        Debug(1, "Failed to find suitable hw_pix_fmt.");
-      }
+      }  // end if hwdevice type found
 #else
       Debug(1, "AVCodec not new enough for hwaccel");
 #endif
@@ -577,9 +584,12 @@ int FfmpegCamera::OpenFfmpeg() {
     av_dict_free(&opts);
 
     if (ret < 0) {
-      Error("Unable to open codec for video stream from %s", mMaskedPath.c_str());
+      Error("Unable to open codec %s for video stream from %s", mVideoCodec->name, mMaskedPath.c_str());
       avcodec_free_context(&mVideoCodecContext);
       mVideoCodecContext = nullptr;
+      // Don't leak the hw device into the next candidate's context
+      if (hw_device_ctx) av_buffer_unref(&hw_device_ctx);
+      hw_pix_fmt = AV_PIX_FMT_NONE;
       continue;
     }
     Debug(1, "Thread count? %d", mVideoCodecContext->thread_count);

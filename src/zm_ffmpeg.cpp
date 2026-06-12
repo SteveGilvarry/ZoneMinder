@@ -39,9 +39,14 @@ extern "C" {
       const char *options_default
       */
 
+// Decoders only. Encoder-only names (libx265, libsvtav1, hevc_vaapi, av1_vaapi)
+// must not be listed here: vaapi decoding is not a separate decoder, it is a
+// hwaccel applied to the plain decoders via hw_device_ctx. qsv decoding however
+// does require the dedicated *_qsv wrapper decoders.
 static CodecData dec_codecs[] = {
-  { AV_CODEC_ID_AV1, "av1", "libsvtav1", AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
+  { AV_CODEC_ID_AV1, "av1", "libdav1d", AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
   { AV_CODEC_ID_AV1, "av1", "libaom-av1", AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
+  { AV_CODEC_ID_AV1, "av1", "av1", AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
   { AV_CODEC_ID_MJPEG, "mjpeg", "mjpeg", AV_PIX_FMT_YUVJ422P, AV_PIX_FMT_YUVJ422P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
   { AV_CODEC_ID_H264, "h264", "h264", AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
   { AV_CODEC_ID_H264, "h264", "h264_v4l2m2m", AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
@@ -49,13 +54,11 @@ static CodecData dec_codecs[] = {
   { AV_CODEC_ID_H265, "hevc", "hevc_v4l2m2m", AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
   { AV_CODEC_ID_H265, "hevc", "hevc_cuvid", AV_PIX_FMT_YUV420P, AV_PIX_FMT_NV12, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
   { AV_CODEC_ID_H264, "h264", "h264_cuvid", AV_PIX_FMT_YUV420P, AV_PIX_FMT_NV12, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
-  { AV_CODEC_ID_H265, "hevc", "libx265", AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
   { AV_CODEC_ID_MPEG4, "mpeg4", "mpeg4", AV_PIX_FMT_YUV420P, AV_PIX_FMT_YUV420P, AV_HWDEVICE_TYPE_NONE, nullptr, nullptr },
 #if HAVE_LIBAVUTIL_HWCONTEXT_H && LIBAVCODEC_VERSION_CHECK(57, 107, 0, 107, 0)
   { AV_CODEC_ID_H264, "h264", "h264_qsv", AV_PIX_FMT_YUV420P, AV_PIX_FMT_QSV, AV_HWDEVICE_TYPE_QSV, nullptr, nullptr },
-  { AV_CODEC_ID_AV1, "av1", "av1_vaapi", AV_PIX_FMT_YUV420P, AV_PIX_FMT_VAAPI, AV_HWDEVICE_TYPE_VAAPI, nullptr, nullptr },
-  { AV_CODEC_ID_H265, "hevc", "hevc_vaapi", AV_PIX_FMT_YUV420P, AV_PIX_FMT_VAAPI, AV_HWDEVICE_TYPE_VAAPI, nullptr, nullptr },
   { AV_CODEC_ID_H265, "hevc", "hevc_qsv", AV_PIX_FMT_YUV420P, AV_PIX_FMT_QSV, AV_HWDEVICE_TYPE_QSV, nullptr, nullptr },
+  { AV_CODEC_ID_AV1, "av1", "av1_qsv", AV_PIX_FMT_YUV420P, AV_PIX_FMT_QSV, AV_HWDEVICE_TYPE_QSV, nullptr, nullptr },
 #endif
 };
 
@@ -118,8 +121,18 @@ std::list<const CodecData*> get_encoder_data(const std::string &wanted_codec, co
   return results;
 }
 
-std::list<const CodecData*> get_decoder_data(int wanted_codec, const std::string &wanted_decoder) {
+std::list<const CodecData*> get_decoder_data(int wanted_codec, const std::string &wanted_decoder, const std::string &hwaccel_name) {
+  // Decoders dedicated to the requested hwaccel device type go first: the
+  // caller opens candidates in order and the plain software decoder always
+  // succeeds, so a hw wrapper listed after it would never be tried.
+  std::list<const CodecData*> hw_results;
   std::list<const CodecData*> results;
+
+  AVHWDeviceType preferred_hwdevice_type = AV_HWDEVICE_TYPE_NONE;
+#if HAVE_LIBAVUTIL_HWCONTEXT_H && LIBAVCODEC_VERSION_CHECK(57, 107, 0, 107, 0)
+  if (!hwaccel_name.empty())
+    preferred_hwdevice_type = av_hwdevice_find_type_by_name(hwaccel_name.c_str());
+#endif
 
   for (unsigned int i = 0; i < sizeof(dec_codecs) / sizeof(*dec_codecs); i++) {
     const CodecData *chosen_codec_data = &dec_codecs[i];
@@ -144,9 +157,16 @@ std::list<const CodecData*> get_decoder_data(int wanted_codec, const std::string
       Debug(1, "Didn't find codec for %s", chosen_codec_data->codec_name);
       continue;
     }
-    results.push_back(chosen_codec_data);
+    if ((preferred_hwdevice_type != AV_HWDEVICE_TYPE_NONE)
+        and (chosen_codec_data->hwdevice_type == preferred_hwdevice_type)) {
+      Debug(1, "Preferring %s for hwaccel %s", chosen_codec_data->codec_name, hwaccel_name.c_str());
+      hw_results.push_back(chosen_codec_data);
+    } else {
+      results.push_back(chosen_codec_data);
+    }
   }
-  return results;
+  hw_results.splice(hw_results.end(), results);
+  return hw_results;
 }
 
 #if HAVE_LIBAVUTIL_HWCONTEXT_H
