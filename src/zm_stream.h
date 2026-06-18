@@ -25,6 +25,7 @@
 #include "zm_mpeg.h"
 #include "zm_time.h"
 #include <memory>
+#include <atomic>
 #include <mutex>
 #include <sys/un.h>
 
@@ -119,15 +120,19 @@ class StreamBase {
   StreamType type;
   FrameType   frame_type;
   const char *format;
-  int replay_rate;
-  int scale;
+  // replay_rate, scale, zoom, x/y, paused, stopped, step and send_twice are
+  // written by the command-processor thread (processCommand) and read by the
+  // streaming loop, so they are atomic to avoid a data race. See issue #4939.
+  std::atomic<int> replay_rate;
+  std::atomic<int> scale;
   int last_scale;
-  int zoom;
+  std::atomic<int> zoom;
   int last_zoom;
   Box last_crop;
   int bitrate;
   unsigned short last_x, last_y;
-  unsigned short x, y;
+  std::atomic<unsigned short> x;
+  std::atomic<unsigned short> y;
   bool send_analysis;
   bool send_objdetect;
   int connkey;
@@ -138,15 +143,15 @@ class StreamBase {
   struct sockaddr_un rem_addr;
   char sock_path_lock[108];
   int lock_fd;
-  bool paused;
-  bool stopped;
-  int step;
-  bool send_twice;        // flag to send the same frame twice
+  std::atomic<bool> paused;
+  std::atomic<bool> stopped;
+  std::atomic<int> step;
+  std::atomic<bool> send_twice;        // flag to send the same frame twice
 
   TimePoint now;
   TimePoint last_comm_update;
 
-  double maxfps;
+  std::atomic<double> maxfps;
   double base_fps;        // Should be capturing fps, hence a rough target
   double effective_fps;   // Target fps after taking max_fps into account
   double actual_fps;      // sliding calculated actual streaming fps achieved

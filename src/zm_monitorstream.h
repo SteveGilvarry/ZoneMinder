@@ -32,9 +32,11 @@ class MonitorStream : public StreamBase {
 
  private:
   SwapImage *temp_image_buffer;
-  int temp_image_buffer_count;
-  int temp_read_index;
-  int temp_write_index;
+  // Written by the streaming loop, read by the command thread (buffer_level);
+  // atomic to avoid a data race. See issue #4939.
+  std::atomic<int> temp_image_buffer_count;
+  std::atomic<int> temp_read_index;
+  std::atomic<int> temp_write_index;
 
  protected:
   Microseconds ttl;

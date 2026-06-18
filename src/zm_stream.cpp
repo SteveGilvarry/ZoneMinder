@@ -103,7 +103,7 @@ void StreamBase::updateFrameRate(double fps) {
   effective_fps = (base_fps*abs(replay_rate))/ZM_RATE_BASE;
   frame_mod = 1;
   Debug(3, "FPS:%.2f, MaxFPS:%.2f, BaseFPS:%.2f, EffectiveFPS:%.2f, FrameMod:%d, replay_rate(%d)",
-        fps, maxfps, base_fps, effective_fps, frame_mod, replay_rate);
+        fps, maxfps.load(), base_fps, effective_fps, frame_mod, replay_rate.load());
   if (maxfps > 0.0) {
     // Min frame repeat?
     // We want to keep the frame skip easy... problem is ... if effective = 31 and max = 30 then we end up with 15.5 fps.
@@ -111,7 +111,7 @@ void StreamBase::updateFrameRate(double fps) {
       effective_fps /= 2.0;
       frame_mod *= 2;
       Debug(3, "Changing fps to be < max %.2f EffectiveFPS:%.2f, FrameMod:%d",
-            maxfps, effective_fps, frame_mod);
+            maxfps.load(), effective_fps, frame_mod);
     }
   }
 } // void StreamBase::updateFrameRate(double fps)
@@ -166,18 +166,18 @@ Image *StreamBase::prepareImage(Image *image) {
 
     double x_percent = static_cast<double>(x * ZM_SCALE_BASE) / base_image_width;
     double y_percent = static_cast<double>(y * ZM_SCALE_BASE) / base_image_height;
-    Debug(2, "click percent %dx%d => %.2fx%.2f", x, y, x_percent, y_percent);
+    Debug(2, "click percent %dx%d => %.2fx%.2f", x.load(), y.load(), x_percent, y_percent);
 
     // If we were previously zoomed in, then the coordinate percentages are into the crop, so calculate the click coordinates in base image
     int crop_x = last_crop.Lo().x_ + (x_percent * last_crop.Width() / ZM_SCALE_BASE);
     int crop_y = last_crop.Lo().y_ + (y_percent * last_crop.Height() / ZM_SCALE_BASE);
-    Debug(2, "crop click %dx%d => %dx%d out of %dx%d", x, y, crop_x, crop_y, last_crop.Width(), last_crop.Height());
+    Debug(2, "crop click %dx%d => %dx%d out of %dx%d", x.load(), y.load(), crop_x, crop_y, last_crop.Width(), last_crop.Height());
 
     int zoom_image_width = base_image_width * zoom / ZM_SCALE_BASE,
         zoom_image_height = base_image_height * zoom / ZM_SCALE_BASE,
         click_x = crop_x * zoom / ZM_SCALE_BASE,
         click_y = crop_y * zoom / ZM_SCALE_BASE;
-    Debug(2, "adjusted click %dx%d * %d zoom => %dx%d out of %dx%d", x, y, zoom, click_x, click_y, zoom_image_width, zoom_image_height);
+    Debug(2, "adjusted click %dx%d * %d zoom => %dx%d out of %dx%d", x.load(), y.load(), zoom.load(), click_x, click_y, zoom_image_width, zoom_image_height);
 
     // These can go out of image. Resulting size will be less than base image. That's ok.
     // We don't want to center it, we want to keep the relative offset from center where the click is.
@@ -235,7 +235,7 @@ Image *StreamBase::prepareImage(Image *image) {
     image->Crop(last_crop);
     image->Scale(disp_image_width, disp_image_height);
   } else if (scale != ZM_SCALE_BASE) {
-    Debug(3, "scaling by %d from %dx%d", scale, image->Width(), image->Height());
+    Debug(3, "scaling by %d from %dx%d", scale.load(), image->Width(), image->Height());
     static Image copy_image;
     copy_image.Assign(*image);
     image = &copy_image;
@@ -267,7 +267,7 @@ bool StreamBase::sendTextFrame(const char *frame_text) {
     labelsize = monitor->LabelSize();
   }
   Debug(2, "Sending %dx%dx%dx%d * %d scale text frame '%s'",
-        width, height, colours, subpixelorder, scale, frame_text);
+        width, height, colours, subpixelorder, scale.load(), frame_text);
 
   Image image(width, height, colours, subpixelorder);
   image.Clear();
