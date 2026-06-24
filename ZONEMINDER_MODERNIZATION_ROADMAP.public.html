@@ -4,390 +4,565 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ZoneMinder Modernization Roadmap</title>
-<meta name="description" content="A typed, API-centric future for ZoneMinder: one documented API, modern clients, and an optional next-generation C++ engine.">
+<meta name="description" content="A typed, API-centric future for ZoneMinder: one documented API, modern clients, and an optional next-generation engine — and how it structurally closes a decade of vulnerabilities.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    --accent: #1f7a5a;          /* ZoneMinder green */
-    --accent-deep: #155c43;
-    --accent-soft: #e6f2ee;
-    --api: #1b4f78;             /* zm-api blue */
-    --api-line: #3a7fb0;
-    --api-soft: #e8f0f6;
-    --ink: #1b1f24;
-    --muted: #5b6470;
-    --faint: #8a929c;
-    --border: #d6dbe1;
-    --line: #9aa4af;
-    --code-bg: #f4f6f8;
-    --panel: #fbfcfd;
-    --proto: #2c7a6b;
+    --display: "Archivo", system-ui, sans-serif;
+    --body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --bg: #0a0d10;
+    --bg-soft: #11161b;
+    --bg-card: #141b21;
+    --bg-card-hi: #18212a;
+    --line: #232d36;
+    --line-hi: #30404c;
+
+    --ink: #e2e8ee;
+    --muted: #93a0ac;
+    --faint: #61707b;
+
+    --signal: #34e3a1;     /* phosphor green — zm-api / the future */
+    --signal-dim: #1c8a63;
+    --signal-glow: rgba(52,227,161,0.35);
+    --cyan: #5ec9da;       /* clients */
+    --amber: #e3a652;      /* warnings / optional */
+    --legacy: #d9974a;     /* legacy / to retire */
+    --danger: #f0746b;     /* vulnerabilities */
+    --neutral: #8794a0;    /* data / workers */
   }
+
   * { box-sizing: border-box; }
-  html { -webkit-text-size-adjust: 100%; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
   body {
-    font-family: var(--sans);
-    color: var(--ink); line-height: 1.62; max-width: 980px; margin: 0 auto;
-    padding: 0 1.5rem 5rem; background: #fff; -webkit-font-smoothing: antialiased;
+    font-family: var(--body); color: var(--ink); background: var(--bg);
+    line-height: 1.65; margin: 0; font-size: 16.5px; overflow-x: hidden;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
   }
-  a { color: var(--api); text-underline-offset: 2px; }
-
-  /* ---- masthead ---- */
-  .masthead { margin: 0 -1.5rem 2rem; padding: 2.8rem 1.5rem 1.8rem;
-    background: linear-gradient(135deg, #103e2d 0%, #1f7a5a 78%, #2a9170 100%);
-    color: #fff; border-bottom: 3px solid var(--accent-deep); }
-  .masthead .kicker { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.14em;
-    text-transform: uppercase; color: #b8e6d4; margin: 0 0 0.5rem; }
-  .masthead h1 { font-size: 2.2rem; line-height: 1.14; margin: 0; letter-spacing: -0.02em; color:#fff; }
-  .masthead .caption { color: #d6efe4; font-size: 0.95rem; margin: 0.7rem 0 0; border: 0; padding: 0; }
-
-  h2 { font-size: 1.38rem; margin: 2.8rem 0 0.9rem; padding: 0.1rem 0 0.1rem 0.8rem;
-       border-left: 4px solid var(--accent); letter-spacing: -0.01em; }
-  h3 { font-size: 1.08rem; margin: 1.7rem 0 0.5rem; color: #283038; }
-  p { margin: 0.7rem 0; }
-  strong { font-weight: 650; }
-  .lead { font-size: 1.08rem; color: #2a323b; }
-
-  code, .path { font-family: var(--mono); font-size: 0.85em; background: var(--code-bg);
-       padding: 0.1em 0.36em; border-radius: 3px; word-break: break-word; }
-
-  table { border-collapse: collapse; width: 100%; margin: 1rem 0 1.3rem; font-size: 0.89rem; }
-  th, td { border: 1px solid var(--border); padding: 0.55rem 0.72rem; text-align: left; vertical-align: top; }
-  thead th { background: var(--accent-soft); font-weight: 650; }
-  tbody tr:nth-child(even) { background: #fafbfc; }
-
-  .pill { display: inline-block; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em;
-       text-transform: uppercase; padding: 0.14em 0.55em; border-radius: 999px; border: 1px solid var(--border);
-       vertical-align: middle; white-space: nowrap; }
-  .m-released { background:#e6f5ec; color:#1d6b39; border-color:#bfe3cb; }
-  .m-active   { background:#e8f0f6; color:#235c86; border-color:#c3d8e8; }
-  .m-early    { background:#fdf3e6; color:#8a5a12; border-color:#eed7b3; }
-  .m-proto    { background:#e3f0ee; color:#1f6f63; border-color:#bfdfd8; }
-  .m-planned  { background:#f1f1f2; color:#5b6470; border-color:#dadde1; }
-
-  ul, ol { margin: 0.6rem 0; padding-left: 1.4rem; }
-  li { margin: 0.3rem 0; }
-
-  .stage { border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 7px;
-       padding: 0.7rem 1.15rem 1rem; margin: 1.1rem 0; background:#fff;
-       box-shadow: 0 1px 2px rgba(20,40,30,0.04); }
-  .stage.optional { border-left-color: #c9a35a; background:#fffdf8; }
-  .stage h3 { margin: 0.5rem 0 0.4rem; }
-  .tag { font-size:0.72rem; font-weight:700; letter-spacing:0.06em; color:var(--muted); text-transform:uppercase; }
-  .stage.optional .tag { color:#9a7726; }
-
-  .callout { border:1px solid var(--api-line); border-left-width:4px; border-radius:7px;
-       background: var(--api-soft); padding:0.85rem 1.1rem; margin:1.2rem 0; }
-
-  hr { border: 0; border-top: 1px solid var(--border); margin: 2.2rem 0; }
-  .footnote { color: var(--muted); font-size: 0.84rem; }
-
-  /* ---- figures / diagrams ---- */
-  figure { margin: 1.5rem 0 1.2rem; }
-  .diagram { display:block; width:100%; height:auto; }
-  figcaption { color: var(--muted); font-size: 0.84rem; margin-top: 0.55rem; text-align:center; }
-  .legend { display:flex; flex-wrap:wrap; gap:0.45rem 1.1rem; justify-content:center;
-       margin-top:0.6rem; font-size:0.78rem; color:var(--muted); }
-  .legend span { display:inline-flex; align-items:center; gap:0.4rem; }
-  .swatch { width:0.8rem; height:0.8rem; border-radius:3px; border:1px solid rgba(0,0,0,0.12); display:inline-block; }
-
-  .diagram text { font-family: var(--sans); fill: var(--ink); }
-  .diagram .panel { fill: var(--panel); stroke: var(--border); }
-  .diagram .box        { fill:#fff;        stroke: var(--border); }
-  .diagram .box-legacy { fill:#f7eceb;     stroke:#e2c4c0; }
-  .diagram .box-client { fill: var(--accent-soft); stroke:#bcdfcd; }
-  .diagram .box-api    { fill: var(--api-soft);     stroke: var(--api-line); }
-  .diagram .box-db     { fill:#eef1f4;     stroke:#cfd6dd; }
-  .diagram .box-proto  { fill:#fff6e9;     stroke:#e3c890; }
-  .diagram .t-title { font-weight:700; font-size:13px; letter-spacing:0.07em; fill: var(--faint); }
-  .diagram .t-label { font-weight:650; font-size:13.5px; }
-  .diagram .t-sub   { font-size:11px; fill: var(--muted); }
-  .diagram .t-api   { fill: var(--api); font-weight:700; font-size:17px; }
-  .diagram .t-tag   { font-size:9.5px; font-weight:700; letter-spacing:0.06em; fill: var(--faint); }
-  .diagram .edge     { fill:none; stroke: var(--line); stroke-width:1.6; }
-  .diagram .edge-api { fill:none; stroke: var(--api-line); stroke-width:2; }
-  .diagram .edge-fat { fill:none; stroke: var(--accent); stroke-width:6; stroke-linecap:round; }
-
-  @media (max-width: 640px) {
-    .masthead h1 { font-size: 1.7rem; }
-    body { line-height: 1.55; }
+  /* scanline + grid atmosphere */
+  body::before {
+    content:""; position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background:
+      repeating-linear-gradient(to bottom, rgba(255,255,255,0.015) 0 1px, transparent 1px 3px);
+    mix-blend-mode: overlay; opacity: 0.6;
   }
-  @media print {
-    .masthead { background: var(--accent) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .diagram, .pill, thead th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    a { color: inherit; text-decoration: none; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem; position: relative; z-index: 2; }
+  .col { max-width: 760px; }
+
+  a { color: var(--signal); text-decoration: none; border-bottom: 1px solid rgba(52,227,161,0.3); }
+  a:hover { border-bottom-color: var(--signal); }
+
+  /* scroll progress */
+  #progress { position: fixed; top: 0; left: 0; height: 2px; width: 0;
+    background: linear-gradient(90deg, var(--signal), var(--cyan)); z-index: 50;
+    box-shadow: 0 0 8px var(--signal-glow); }
+
+  /* ---------- masthead ---------- */
+  .masthead { position: relative; overflow: hidden; border-bottom: 1px solid var(--line);
+    background: radial-gradient(120% 140% at 78% -10%, rgba(52,227,161,0.16), transparent 55%),
+                radial-gradient(90% 120% at 0% 120%, rgba(94,201,218,0.10), transparent 50%),
+                var(--bg); }
+  .masthead::after { content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 46px 46px; opacity: 0.16; mask-image: radial-gradient(80% 90% at 70% 10%, #000, transparent 75%); }
+  .masthead .wrap { padding-top: 3.4rem; padding-bottom: 2.6rem; }
+  .eyebrow { font-family: var(--mono); font-size: 0.74rem; letter-spacing: 0.32em;
+    text-transform: uppercase; color: var(--signal); margin: 0 0 1.1rem; }
+  .eyebrow .blink { display:inline-block; width:0.5em; height:0.5em; border-radius:50%;
+    background: var(--signal); box-shadow:0 0 8px var(--signal); margin-right:0.7em; vertical-align:middle;
+    animation: blink 2.4s steps(1) infinite; }
+  @keyframes blink { 0%,70%{opacity:1} 71%,100%{opacity:0.25} }
+  h1 { font-family: var(--display); font-weight: 800; font-size: clamp(2rem, 6vw, 4.1rem);
+    line-height: 1.0; letter-spacing: -0.025em; margin: 0; color: #fff; overflow-wrap: break-word; }
+  h1 .alt { color: var(--signal); }
+  .dek { font-size: clamp(1rem, 2vw, 1.18rem); color: var(--muted); margin: 1.2rem 0 0; max-width: 640px; }
+  .statusbar { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.8rem; font-family: var(--mono); }
+  .chip { font-size: 0.72rem; letter-spacing: 0.04em; padding: 0.32em 0.7em; border-radius: 2px;
+    border: 1px solid var(--line-hi); color: var(--muted); background: rgba(255,255,255,0.02);
+    display: inline-flex; gap: 0.5em; align-items: center; }
+  .chip b { color: var(--ink); font-weight: 500; }
+  .chip .dot { width: 0.5em; height: 0.5em; border-radius: 50%; }
+  .dot.go { background: var(--signal); box-shadow: 0 0 6px var(--signal); }
+  .dot.warm { background: var(--amber); }
+  .dot.cool { background: var(--cyan); }
+
+  /* ---------- sections ---------- */
+  section { padding: 3.4rem 0 0.6rem; }
+  .secnum { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.22em; color: var(--signal);
+    text-transform: uppercase; display: block; margin-bottom: 0.5rem; }
+  h2 { font-family: var(--display); font-weight: 700; font-size: clamp(1.5rem, 3.4vw, 2.05rem);
+    letter-spacing: -0.02em; margin: 0 0 1rem; color: #fff; line-height: 1.1; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: 1.1rem; margin: 0 0 0.4rem; color: #fff; letter-spacing: -0.01em; }
+  p { margin: 0.8rem 0; }
+  .lead { font-size: 1.18rem; line-height: 1.55; color: #eef3f8; }
+  strong { font-weight: 600; color: #f2f6fa; }
+  em { color: var(--cyan); font-style: normal; }
+  code { font-family: var(--mono); font-size: 0.84em; background: rgba(94,201,218,0.10);
+    color: #b7e7f0; padding: 0.08em 0.4em; border-radius: 3px; border: 1px solid rgba(94,201,218,0.15); }
+
+  /* ---------- architecture diagram (CSS) ---------- */
+  .arch { display: grid; grid-template-columns: 1fr auto 1fr; gap: 1.1rem; align-items: stretch;
+    margin: 1.6rem 0 0.4rem; }
+  .panel { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-soft);
+    padding: 1.1rem 1.1rem 1.3rem; position: relative; }
+  .panel-tag { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.18em; color: var(--faint);
+    text-transform: uppercase; }
+  .panel-sub { font-size: 0.84rem; color: var(--muted); margin-bottom: 1rem; }
+  .node { border-radius: 8px; border: 1px solid var(--line-hi); background: var(--bg-card);
+    padding: 0.7rem 0.9rem; transition: transform 0.18s, box-shadow 0.18s, border-color 0.18s; }
+  .node .nlabel { font-weight: 600; font-size: 0.95rem; color: #fff; }
+  .node .nsub { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-top: 0.1rem; }
+  .node.legacy { border-left: 3px solid var(--legacy); }
+  .node.legacy .nlabel { color: #f1ddc2; }
+  .legacy-list { display: grid; gap: 0.55rem; }
+  .db-pill { margin-top: 0.9rem; text-align: center; border: 1px dashed var(--line-hi); border-radius: 8px;
+    padding: 0.6rem; color: var(--neutral); font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.06em;
+    background: rgba(255,255,255,0.015); }
+  .db-pill b { color: #cdd6de; }
+  .db-pill span { display:block; font-size: 0.68rem; color: var(--faint); letter-spacing: 0.02em; margin-top:0.2rem; }
+
+  .arch-arrow { align-self: center; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.12em;
+    color: var(--signal); writing-mode: vertical-rl; text-orientation: mixed; transform: rotate(180deg);
+    display: flex; align-items: center; gap: 0.6rem; }
+  .arch-arrow::before { content: "▸"; writing-mode: horizontal-tb; transform: rotate(90deg); font-size: 1.4rem; filter: drop-shadow(0 0 6px var(--signal-glow)); }
+
+  .spine { display: grid; gap: 0; }
+  .spine .node { text-align: center; }
+  .node.clients { border-color: rgba(94,201,218,0.5); }
+  .node.clients .nlabel { color: var(--cyan); }
+  .node.api { border: 1px solid var(--signal); background: linear-gradient(180deg, rgba(52,227,161,0.10), rgba(52,227,161,0.03));
+    box-shadow: 0 0 0 1px rgba(52,227,161,0.12), 0 8px 30px -12px var(--signal-glow); }
+  .node.api .nlabel { font-family: var(--display); font-weight: 700; font-size: 1.45rem; color: var(--signal);
+    letter-spacing: -0.01em; text-shadow: 0 0 18px var(--signal-glow); }
+  .node.api .nsub { color: #a9e9cf; }
+  .node.data { border-style: solid; color: var(--neutral); }
+  .node.data .nlabel { color: #cdd6de; font-size: 0.95rem; }
+  .link { justify-self: center; width: 2px; height: 26px; background: linear-gradient(var(--line-hi), var(--signal));
+    position: relative; }
+  .link::after { content: "▾"; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%);
+    color: var(--signal); font-size: 0.8rem; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.3rem; justify-content: center; margin-top: 1rem;
+    font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 0.45rem; }
+  .sw { width: 0.8rem; height: 0.8rem; border-radius: 2px; display: inline-block; }
+  .figcap { text-align: center; color: var(--faint); font-size: 0.82rem; margin: 0.7rem 0 0; }
+
+  /* ---------- security section ---------- */
+  .panel-block { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-soft);
+    padding: 1.4rem; margin: 1.4rem 0; }
+  .cve-bars { display: grid; gap: 0.85rem; margin: 0.4rem 0 0.5rem; }
+  .cve-row { display: grid; grid-template-columns: 160px 1fr; gap: 0.9rem; align-items: center; }
+  .cve-name { font-family: var(--mono); font-size: 0.8rem; color: var(--ink); text-align: right; }
+  .cve-name small { display:block; color: var(--faint); font-size: 0.68rem; }
+  .cve-track { background: rgba(255,255,255,0.03); border-radius: 4px; height: 34px; position: relative;
+    border: 1px solid var(--line); overflow: hidden; }
+  .cve-bar { height: 100%; display: flex; align-items: center; padding: 0 0.7rem; border-radius: 3px 0 0 3px;
+    font-family: var(--mono); font-size: 0.8rem; font-weight: 600; color: #0a0d10; white-space: nowrap;
+    width: 0; animation: grow 1.1s cubic-bezier(.2,.8,.2,1) forwards; }
+  @keyframes grow { to { width: var(--w); } }
+  .cve-bar.php { background: linear-gradient(90deg, #f0746b, #d9974a); --w: 100%; }
+  .cve-bar.api { background: linear-gradient(90deg, #d9974a, #e3a652); --w: 13%; color: var(--ink); }
+  .cve-bar.cpp { background: #5ec9da; --w: 6%; }
+  .cve-bar.perl { background: transparent; --w: 100%; color: var(--faint); border:0; padding-left:0; }
+  .cve-out { position: absolute; top: 0; height: 100%; display: flex; align-items: center;
+    font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+  .no-motion .cve-bar { animation: none; width: var(--w); }
+
+  .fixgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0.9rem; margin-top: 0.6rem; }
+  .fix { border: 1px solid var(--line); border-radius: 9px; background: var(--bg-card); padding: 1rem 1.05rem;
+    border-top: 2px solid var(--signal); }
+  .fix .vclass { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.06em; color: var(--danger);
+    text-transform: uppercase; display: flex; justify-content: space-between; gap: 0.5rem; }
+  .fix .vclass b { color: var(--faint); font-weight: 500; }
+  .fix h4 { font-family: var(--body); font-size: 0.96rem; margin: 0.45rem 0 0.35rem; color: #fff; font-weight: 600; }
+  .fix p { margin: 0; font-size: 0.88rem; color: var(--muted); }
+  .fix .cves { font-family: var(--mono); font-size: 0.68rem; color: var(--faint); margin-top: 0.5rem; }
+  .caveat { border-left: 3px solid var(--amber); background: rgba(227,166,82,0.06); padding: 0.8rem 1.1rem;
+    border-radius: 0 8px 8px 0; margin-top: 1.2rem; font-size: 0.92rem; color: var(--muted); }
+  .caveat b { color: var(--amber); }
+
+  /* ---------- project cards ---------- */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 0.9rem; margin: 1.2rem 0; }
+  .card { border: 1px solid var(--line); border-radius: 10px; background: var(--bg-card); padding: 1.1rem 1.15rem;
+    transition: transform 0.18s, border-color 0.18s, box-shadow 0.18s; }
+  .card:hover { transform: translateY(-3px); border-color: var(--line-hi); box-shadow: 0 14px 30px -18px rgba(0,0,0,0.8); }
+  .card.hero { border-color: rgba(52,227,161,0.4); box-shadow: inset 0 0 0 1px rgba(52,227,161,0.08); }
+  .card .top { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.2rem; }
+  .card .pname { font-family: var(--mono); font-weight: 600; font-size: 1rem; color: #fff; }
+  .card .prole { font-size: 0.8rem; color: var(--cyan); font-family: var(--mono); margin-bottom: 0.6rem; }
+  .card p { margin: 0; font-size: 0.9rem; color: var(--muted); }
+  .stat { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 0.22em 0.55em; border-radius: 999px; border: 1px solid; white-space: nowrap; }
+  .stat.released { color: var(--signal); border-color: var(--signal-dim); background: rgba(52,227,161,0.08); }
+  .stat.active   { color: var(--cyan); border-color: rgba(94,201,218,0.4); background: rgba(94,201,218,0.07); }
+  .stat.dev      { color: var(--amber); border-color: rgba(227,166,82,0.4); background: rgba(227,166,82,0.07); }
+  .stat.planned  { color: var(--faint); border-color: var(--line-hi); }
+
+  /* ---------- stage cards ---------- */
+  .stage { border: 1px solid var(--line); border-left: 3px solid var(--signal); border-radius: 10px;
+    background: var(--bg-card); padding: 1rem 1.2rem 1.15rem; margin: 1rem 0; }
+  .stage.optional { border-left-color: var(--amber); background: rgba(227,166,82,0.04); }
+  .stage .stag { font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--signal); }
+  .stage.optional .stag { color: var(--amber); }
+  .stage p { font-size: 0.93rem; }
+
+  /* ---------- sequencing diagram ---------- */
+  .seq { display: grid; grid-template-columns: 230px 1fr; gap: 1.2rem; align-items: center; margin: 1.4rem 0 0.4rem; }
+  .gate { border: 1px solid var(--signal); border-radius: 10px; text-align: center; padding: 1.3rem 1rem;
+    background: linear-gradient(180deg, rgba(52,227,161,0.12), rgba(52,227,161,0.03));
+    box-shadow: 0 0 30px -14px var(--signal-glow); }
+  .gate .gname { font-family: var(--display); font-weight: 700; font-size: 1.5rem; color: var(--signal);
+    text-shadow: 0 0 18px var(--signal-glow); }
+  .gate .gsub { font-family: var(--mono); font-size: 0.74rem; color: #a9e9cf; margin-top: 0.2rem; }
+  .gate .gtag { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; color: var(--faint);
+    margin-top: 0.7rem; text-transform: uppercase; }
+  .tracks { display: grid; gap: 0.6rem; border-left: 2px dashed var(--line-hi); padding-left: 1.1rem; }
+  .track { border: 1px solid var(--line); border-radius: 8px; background: var(--bg-card); padding: 0.7rem 0.95rem;
+    display: flex; justify-content: space-between; align-items: center; gap: 0.7rem; position: relative; }
+  .track::before { content: ""; position: absolute; left: -1.1rem; top: 50%; width: 0.85rem; height: 2px;
+    background: var(--signal); transform: translateY(-50%); }
+  .track.unlocked { border-left: 3px solid var(--cyan); }
+  .track .tname { font-weight: 600; font-size: 0.92rem; color: #fff; }
+  .track .ttag { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.08em; color: var(--faint); text-transform: uppercase; }
+  .indep { margin-top: 1rem; border: 1px dashed var(--amber); border-radius: 10px; padding: 0.85rem 1.1rem;
+    background: rgba(227,166,82,0.05); display: flex; justify-content: space-between; align-items: center; gap: 0.8rem; flex-wrap: wrap; }
+  .indep .iname { font-weight: 600; color: #f1ddc2; }
+  .indep .isub { font-family: var(--mono); font-size: 0.72rem; color: var(--faint); }
+  .indep .itag { font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.08em; color: var(--amber); text-transform: uppercase; }
+
+  /* ---------- lists ---------- */
+  ul.clean { list-style: none; padding: 0; display: grid; gap: 0.7rem; }
+  ul.clean li { padding-left: 1.5rem; position: relative; }
+  ul.clean li::before { content: "▸"; position: absolute; left: 0; color: var(--signal); }
+
+  hr { border: 0; border-top: 1px solid var(--line); margin: 3rem 0 0; }
+  footer { padding: 2rem 0 3rem; color: var(--faint); font-size: 0.84rem; }
+  footer .mono { font-family: var(--mono); }
+
+  /* reveal-on-scroll */
+  .js .reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .js .reveal.in { opacity: 1; transform: none; }
+
+  @media (max-width: 760px) {
+    h1 { font-size: clamp(1.65rem, 8vw, 2.5rem); letter-spacing: -0.02em; }
+    .masthead .wrap { padding-top: 2.6rem; }
+    .arch { grid-template-columns: 1fr; }
+    .arch-arrow { writing-mode: horizontal-tb; transform: none; justify-self: center; }
+    .arch-arrow::before { transform: rotate(180deg); }
+    .seq { grid-template-columns: 1fr; }
+    .tracks { border-left: none; padding-left: 0; }
+    .track::before { display: none; }
+    .cve-row { grid-template-columns: 1fr; gap: 0.3rem; }
+    .cve-name { text-align: left; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .js .reveal { opacity: 1; transform: none; transition: none; }
+    .cve-bar { animation: none; width: var(--w); }
+    .eyebrow .blink { animation: none; }
+    html { scroll-behavior: auto; }
   }
 </style>
 </head>
 <body>
+<div id="progress"></div>
 
 <header class="masthead">
-  <p class="kicker">Project Roadmap</p>
-  <h1>ZoneMinder Modernization Roadmap</h1>
-  <p class="caption">A typed, API-centric future for ZoneMinder — one documented API, modern clients, and an optional next-generation engine. Last updated June 2026.</p>
+  <div class="wrap">
+    <p class="eyebrow"><span class="blink"></span>Project Roadmap &middot; ZoneMinder</p>
+    <h1>Modernizing <span class="alt">ZoneMinder.</span><br>One API. Modern clients.<br>A safer core.</h1>
+    <p class="dek">A typed, API-centric future for ZoneMinder — collapsing three languages and a tangle of database access into one documented service, and structurally closing a decade of vulnerabilities.</p>
+    <div class="statusbar">
+      <span class="chip"><span class="dot go"></span>zmNinjaNg&nbsp;<b>shipped</b></span>
+      <span class="chip"><span class="dot cool"></span>zm-api&nbsp;<b>pre-release</b></span>
+      <span class="chip"><span class="dot cool"></span>dashboard&nbsp;<b>active</b></span>
+      <span class="chip"><span class="dot warm"></span>zm-next&nbsp;<b>in dev</b></span>
+      <span class="chip">updated&nbsp;<b>Jun 2026</b></span>
+    </div>
+  </div>
 </header>
 
-<h2>1. Vision</h2>
-<p class="lead">
-Move ZoneMinder onto a <strong>typed, API-centric architecture</strong>: one service in front of everything, modern clients that all speak a single documented API, and — eventually and optionally — a new engine for capture and analysis.
-</p>
-<p>
-ZoneMinder has earned its longevity, but its foundations show their age. The web UI and REST API sit on <strong>PHP + CakePHP 2.x</strong>, a framework that has reached end of life. Daemon control and much of the glue is <strong>Perl</strong>. The capture/analysis/streaming core is <strong>C++</strong>, tightly coupled to its current data and process model. Today's clients — mobile apps, Home Assistant, single-page dashboards — are awkward to build against because there is no single, well-defined surface to target.
-</p>
-<p>
-This roadmap introduces a single service (<code>zm-api</code>) as the control, data, and streaming plane; modern web and native clients that all speak <em>one</em> documented API; and — eventually and optionally — a new engine (<code>zm-next</code>) for capture and analysis. The aim is not novelty for its own sake. It is to <strong>retire dead-end platforms</strong> and give every client a single, well-tested surface instead of three languages each reaching into the database.
-</p>
+<div class="wrap">
 
-<h2>2. Target architecture</h2>
-<p>
-Today there are many entry points and three languages touching the database directly. The target collapses that to one API in front of everything — one auth model, one surface, one place to add features. Clients stop needing to know how capture works.
-</p>
+  <section class="reveal">
+    <div class="col">
+      <span class="secnum">01 — Vision</span>
+      <h2>One surface in front of everything</h2>
+      <p class="lead">Move ZoneMinder onto a typed, API-centric architecture: one service in front of everything, modern clients that all speak a single documented API, and — eventually and optionally — a new engine for capture and analysis.</p>
+      <p>ZoneMinder has earned its longevity, but its foundations show their age. The <strong>classic web interface is plain PHP</strong> — hand-written pages, AJAX endpoints, and a front controller. The <strong>REST API is a separate CakePHP 2.x application</strong>, built on a framework that has reached end of life. Daemon control and glue is <strong>Perl</strong>. The capture, analysis, and streaming core is <strong>C++</strong>. Four distinct layers, three languages, and several of them reaching straight into the database.</p>
+      <p>This roadmap introduces a single service (<code>zm-api</code>) as the control, data, and streaming plane; modern web and native clients that all speak <em>one</em> documented API; and — eventually and optionally — a new engine (<code>zm-next</code>) for capture and analysis. The aim is not novelty for its own sake. It is to <strong>retire dead-end platforms</strong>, give every client a single well-tested surface, and remove the conditions that produced years of security bugs.</p>
+    </div>
+  </section>
 
-<figure>
-<svg class="diagram" viewBox="0 0 920 440" role="img" aria-labelledby="d1t d1d">
-  <title id="d1t">Today versus target architecture</title>
-  <desc id="d1d">Today, PHP, Perl and C++ components each reach into the database directly. In the target, all clients talk to a single zm-api service that fronts the database and the capture and analysis workers.</desc>
-  <defs>
-    <marker id="arr1" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#9aa4af"/>
-    </marker>
-    <marker id="arr1a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#3a7fb0"/>
-    </marker>
-    <marker id="arr1f" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#1f7a5a"/>
-    </marker>
-  </defs>
+  <section class="reveal">
+    <span class="secnum">02 — Target architecture</span>
+    <h2>From a tangle to a single spine</h2>
+    <p class="col">Today there are many entry points and three languages touching the database directly. The target collapses that to one API in front of everything — one auth model, one surface, one place to add features.</p>
 
-  <!-- ===== TODAY ===== -->
-  <text class="t-title" x="20" y="30">TODAY</text>
-  <text class="t-sub" x="78" y="30">three languages reach into the DB</text>
-  <rect class="panel" x="8" y="42" width="400" height="384" rx="11"/>
+    <div class="arch">
+      <div class="panel">
+        <div class="panel-tag">Today</div>
+        <div class="panel-sub">four layers, several reaching into the DB</div>
+        <div class="legacy-list">
+          <div class="node legacy"><div class="nlabel">PHP classic UI</div><div class="nsub">plain PHP &middot; skins / ajax / views</div></div>
+          <div class="node legacy"><div class="nlabel">CakePHP 2.x REST API</div><div class="nsub">framework &middot; end-of-life</div></div>
+          <div class="node legacy"><div class="nlabel">Perl daemons</div><div class="nsub">zmdc / zmpkg / zmu</div></div>
+          <div class="node legacy"><div class="nlabel">C++ core</div><div class="nsub">zmc / zma / zms</div></div>
+        </div>
+        <div class="db-pill"><b>DATABASE</b><span>multiple layers reach in directly</span></div>
+      </div>
 
-  <g>
-    <rect class="box-legacy" x="28" y="86"  width="158" height="44" rx="7"/>
-    <text class="t-label" x="107" y="105" text-anchor="middle">PHP skin</text>
-    <text class="t-sub"   x="107" y="121" text-anchor="middle">classic web UI</text>
+      <div class="arch-arrow">CONSOLIDATE</div>
 
-    <rect class="box-legacy" x="28" y="150" width="158" height="44" rx="7"/>
-    <text class="t-label" x="107" y="169" text-anchor="middle">CakePHP 2.x API</text>
-    <text class="t-sub"   x="107" y="185" text-anchor="middle">PHP &middot; end-of-life</text>
+      <div class="panel">
+        <div class="panel-tag">Target</div>
+        <div class="panel-sub">one API in front of everything</div>
+        <div class="spine">
+          <div class="node clients"><div class="nlabel">All clients</div><div class="nsub">dashboard · zmNinjaNg · mobile · Home&nbsp;Assistant · 3rd-party</div></div>
+          <div class="link"></div>
+          <div class="node api"><div class="nlabel">zm-api</div><div class="nsub">one REST / WS API · data · daemon control · streaming</div></div>
+          <div class="link"></div>
+          <div class="node data"><div class="nlabel">Database + capture / analysis workers</div><div class="nsub">legacy C++ now → zm-next later</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--legacy)"></i>legacy / to retire</span>
+      <span><i class="sw" style="background:var(--cyan)"></i>clients</span>
+      <span><i class="sw" style="background:var(--signal)"></i>zm-api</span>
+      <span><i class="sw" style="background:var(--neutral)"></i>data / workers</span>
+    </div>
+    <p class="figcap">Many paths into the database collapse to a single service that every client speaks to.</p>
+  </section>
 
-    <rect class="box-legacy" x="28" y="214" width="158" height="44" rx="7"/>
-    <text class="t-label" x="107" y="233" text-anchor="middle">Perl daemons</text>
-    <text class="t-sub"   x="107" y="249" text-anchor="middle">zmdc / zmpkg / zmu</text>
+  <section class="reveal">
+    <span class="secnum">03 — Why it matters</span>
+    <h2>A decade of CVEs, almost all in one layer</h2>
+    <p class="col">The case for this architecture is not only ergonomics — it is security. ZoneMinder has more than <strong>50 published CVEs (2013–2024)</strong>, and they are not spread evenly. They cluster overwhelmingly in the <strong>plain-PHP classic web UI</strong>; the CakePHP API is a small secondary surface; the C++ daemons and Perl tooling barely appear.</p>
 
-    <rect class="box-legacy" x="28" y="278" width="158" height="44" rx="7"/>
-    <text class="t-label" x="107" y="297" text-anchor="middle">C++ core</text>
-    <text class="t-sub"   x="107" y="313" text-anchor="middle">zmc / zma / zms</text>
-  </g>
+    <div class="panel-block">
+      <div class="panel-tag" style="margin-bottom:0.9rem">Published CVEs by component &nbsp;·&nbsp; 2013–2024</div>
+      <div class="cve-bars">
+        <div class="cve-row">
+          <div class="cve-name">PHP classic UI<small>skin · ajax · views · index.php</small></div>
+          <div class="cve-track"><div class="cve-bar php">≈ 48 CVEs</div></div>
+        </div>
+        <div class="cve-row">
+          <div class="cve-name">CakePHP 2.x API<small>web/api</small></div>
+          <div class="cve-track"><div class="cve-bar api"></div><div class="cve-out" style="left:16%">3 CVEs</div></div>
+        </div>
+        <div class="cve-row">
+          <div class="cve-name">C++ daemons<small>zmu buffer overflow</small></div>
+          <div class="cve-track"><div class="cve-bar cpp"></div><div class="cve-out" style="left:9%">1 CVE</div></div>
+        </div>
+        <div class="cve-row">
+          <div class="cve-name">Perl tooling<small>—</small></div>
+          <div class="cve-track"><div class="cve-out" style="left:0.7rem">0 verified</div></div>
+        </div>
+      </div>
+      <p style="font-size:0.84rem;color:var(--faint);margin:0.9rem 0 0">Dominant classes: stored / reflected XSS, SQL injection, OS command injection, path-traversal → RCE, CSRF, session &amp; authorization flaws. Root cause is systemic — string-interpolated SQL, unescaped output, and unvalidated request parameters reaching <code>readfile()</code>, <code>unserialize()</code>, file paths, and the shell.</p>
+    </div>
 
-  <g>
-    <path class="box-db" d="M300,176 a44,13 0 0 1 88,0 v116 a44,13 0 0 1 -88,0 z"/>
-    <ellipse class="box-db" cx="344" cy="176" rx="44" ry="13"/>
-    <text class="t-label" x="344" y="240" text-anchor="middle">DB</text>
-  </g>
+    <h3 style="margin-top:1.6rem">How the roadmap closes these — by class, not by patch</h3>
+    <div class="fixgrid">
+      <div class="fix">
+        <div class="vclass"><span>Cross-site scripting</span><b>≈28</b></div>
+        <h4>Retire the PHP skin → React dashboard</h4>
+        <p>A framework UI escapes output by default; there is no hand-built HTML to forget to escape. The largest CVE class disappears with the layer that produced it.</p>
+        <div class="cves">2019 XSS batch · CVE-2020-25729</div>
+      </div>
+      <div class="fix">
+        <div class="vclass"><span>SQL injection</span><b>≈10</b></div>
+        <h4>All DB access behind zm-api (Rust + SeaORM)</h4>
+        <p>Queries are parameterized by construction; no string-built SQL on a request path. Removes the CVSS-9.8 injection cluster.</p>
+        <div class="cves">CVE-2019-8423 / 8424 / 8428 · CVE-2024-43360 / 51482</div>
+      </div>
+      <div class="fix">
+        <div class="vclass"><span>Command injection</span><b>≈5</b></div>
+        <h4>Typed daemon control, no request-driven shell</h4>
+        <p>Daemon control becomes a typed API call, not request parameters spliced into a shell command.</p>
+        <div class="cves">CVE-2019-8427 · CVE-2023-26039 · CVE-2023-31493</div>
+      </div>
+      <div class="fix">
+        <div class="vclass"><span>Path traversal → RCE</span><b>≈5</b></div>
+        <h4>No PHP front controller; static assets</h4>
+        <p>No user-controlled <code>$view</code> include and no <code>readfile()</code> on attacker paths. The dashboard ships as static assets.</p>
+        <div class="cves">CVE-2022-29806 · CVE-2023-26036 · CVE-2017-5595</div>
+      </div>
+      <div class="fix">
+        <div class="vclass"><span>CSRF / session / authz</span><b>≈7</b></div>
+        <h4>One JWT + RBAC surface, not two realms</h4>
+        <p>A single stateless auth model with role- and row-level access control and framework CSRF defenses replaces two overlapping login systems.</p>
+        <div class="cves">CVE-2016-10205 / 10206 · CVE-2019-7347 / 7350 · CVE-2022-39289 · CVE-2023-26035</div>
+      </div>
+      <div class="fix">
+        <div class="vclass"><span>Memory safety</span><b>1</b></div>
+        <h4>Rust core (zm-next) forecloses overflows</h4>
+        <p>The eventual capture/analysis engine is memory-safe by default — the bug class behind the lone C++ daemon CVE cannot recur the same way.</p>
+        <div class="cves">CVE-2019-6991 (zmu)</div>
+      </div>
+    </div>
+    <p class="caveat"><b>Honest caveat.</b> New code can carry new bugs, and a typed API is not immune — the CakePHP layer still had a JWT-rooted SQL injection (CVE-2023-26032). The structural win is eliminating whole <em>classes</em> — parameterized queries, auto-escaped templating, one auth model, memory safety — instead of the per-endpoint whack-a-mole the PHP UI required.</p>
+  </section>
 
-  <path class="edge" marker-end="url(#arr1)" d="M186,108 C250,108 250,200 300,212"/>
-  <path class="edge" marker-end="url(#arr1)" d="M186,172 C250,172 256,214 300,224"/>
-  <path class="edge" marker-end="url(#arr1)" d="M186,236 C250,236 256,236 300,236"/>
-  <path class="edge" marker-end="url(#arr1)" d="M186,300 C250,300 256,260 300,250"/>
+  <section class="reveal">
+    <span class="secnum">04 — The projects</span>
+    <h2>The pieces already exist</h2>
+    <p class="col">Most of this future is already in motion, at different stages of maturity.</p>
+    <div class="cards">
+      <div class="card hero">
+        <div class="top"><span class="pname">zm-api</span><span class="stat active">active · pre-release</span></div>
+        <div class="prole">Rust · Axum · SeaORM — API + control + streaming</div>
+        <p>One service for data, control, and streaming: a broad REST/WS API; daemon management that takes over from <code>zmdc</code>/<code>zmpkg</code>/<code>zmu</code> with a compatibility shim and a passive↔active rollout; HLS/WebRTC/VOD streaming replacing <code>zms</code>; JWT auth with role- and row-level access control; deb/rpm/AUR packaging.</p>
+      </div>
+      <div class="card">
+        <div class="top"><span class="pname">zm-dashboard</span><span class="stat active">active</span></div>
+        <div class="prole">React · TypeScript · Vite · Tailwind</div>
+        <p>The new web UI. Talks only to zm-api; a dual-skin design (modern plus classic-compatible) eases the transition for existing users.</p>
+      </div>
+      <div class="card">
+        <div class="top"><span class="pname">zmNinjaNg</span><span class="stat released">released</span></div>
+        <div class="prole">React · Capacitor · Electron</div>
+        <p>The cross-platform mobile and desktop client, with published binaries (<code>v1.1.15</code>). Repoints at zm-api as part of Stage 1.</p>
+      </div>
+      <div class="card">
+        <div class="top"><span class="pname">mobile — Apple / Android</span><span class="stat dev">in development</span></div>
+        <div class="prole">SwiftUI · Kotlin / Compose · Media3</div>
+        <p>Native iOS, tvOS, and Android clients built on shared cores; consume zm-api.</p>
+      </div>
+      <div class="card">
+        <div class="top"><span class="pname">zm-next</span><span class="stat dev">in development</span></div>
+        <div class="prole">C++20 · FFmpeg · ONNX Runtime</div>
+        <p>A next-generation per-monitor worker: a JSON-wired plugin pipeline (capture → decode → motion → detect → track → record / stream), each stage on its own thread, served to zm-api over one socket. ~30 plugins with an embedded AI tier and an optional GPU zero-copy path. Optional and long-horizon; currently in validation and hardening.</p>
+      </div>
+      <div class="card">
+        <div class="top"><span class="pname">Home Assistant</span><span class="stat planned">planned</span></div>
+        <div class="prole">integration</div>
+        <p>A first-class HA integration that consumes zm-api, alongside the other clients — open for community ownership.</p>
+      </div>
+    </div>
+    <p class="col"><strong>Where things stand:</strong> zmNinjaNg has shipped. <code>zm-api</code> is the keystone, in active hardening toward its first release. The dashboard and native apps are ready to move as soon as the API stabilises. <code>zm-next</code> has grown into a substantial engine with a working capture-to-record pipeline and AI tier; what remains is validation and per-camera cutover. The plan turns on one event: <strong>zm-api's first solid release</strong>.</p>
+  </section>
 
-  <text class="t-tag" x="460" y="222" text-anchor="middle" fill="#155c43">CONSOLIDATE</text>
-  <path class="edge-fat" marker-end="url(#arr1f)" d="M418,236 L498,236"/>
+  <section class="reveal">
+    <span class="secnum">05 — The stages</span>
+    <h2>How it rolls out</h2>
+    <div class="stage">
+      <span class="stag">Stage 1 — current focus</span>
+      <h3>zm-api reaches a first release and takes over the API, daemon, and streaming</h3>
+      <p><code>zm-api</code> replaces the CakePHP 2.x API, takes over the daemon layer (<code>zmdc</code>/<code>zmpkg</code>/<code>zmu</code>), and serves live and recorded streaming (HLS/WebRTC/VOD). zmNinjaNg cuts over to the new API. <strong>Rollout is passive-first</strong> — the API runs alongside stock ZoneMinder, REST-only — then flips to active takeover of daemon control once proven on real installs.</p>
+    </div>
+    <div class="stage">
+      <span class="stag">Stage 2 — next</span>
+      <h3>zm-dashboard replaces the PHP frontend</h3>
+      <p>The React dashboard becomes the web UI, talking only to zm-api — no PHP component touches the database any more. Once it reaches parity, <strong>the plain-PHP classic skin and the CakePHP API are retired</strong>. A single sign-on bridge during the coexistence window keeps users from juggling two logins.</p>
+    </div>
+    <div class="stage optional">
+      <span class="stag">Stage 3 — optional / long horizon</span>
+      <h3>zm-next replaces the C++ capture/analysis core</h3>
+      <p>The plugin-pipeline worker replaces <code>zmc</code>/<code>zma</code>, supervised by zm-api. Deliberately the optional endgame: the engine is largely built and validated on file inputs; what remains is validation on real cameras at scale, recording hardening, broader GPU support, and <strong>per-camera cutover with legacy fallback</strong>. It does not block Stages 1–2.</p>
+    </div>
+    <div class="stage">
+      <span class="stag">Parallel — client track</span>
+      <h3>Mobile + Home Assistant integration</h3>
+      <p>Native mobile apps and a new Home Assistant integration are independent clients that consume zm-api, moving in parallel once there is a stable API surface to build against.</p>
+    </div>
+  </section>
 
-  <!-- ===== TARGET ===== -->
-  <text class="t-title" x="524" y="30">TARGET</text>
-  <text class="t-sub" x="588" y="30">one API in front of everything</text>
-  <rect class="panel" x="512" y="42" width="400" height="384" rx="11"/>
+  <section class="reveal">
+    <span class="secnum">06 — Sequencing</span>
+    <h2>One gate unlocks everything</h2>
+    <p class="col">Nearly everything turns on one event: <strong>zm-api's first solid release</strong>. <code>zm-next</code> runs on its own long-horizon, optional track. This is a sequence of milestones, not a dated schedule.</p>
+    <div class="seq">
+      <div class="gate">
+        <div class="gname">zm-api</div>
+        <div class="gsub">first solid release</div>
+        <div class="gtag">the one gate</div>
+      </div>
+      <div>
+        <div class="tracks">
+          <div class="track unlocked"><span class="tname">zmNinjaNg cutover</span><span class="ttag">Stage 1</span></div>
+          <div class="track unlocked"><span class="tname">zm-dashboard → retire PHP UI + CakePHP API</span><span class="ttag">Stage 2</span></div>
+          <div class="track unlocked"><span class="tname">Mobile — Apple / Android</span><span class="ttag">Parallel</span></div>
+          <div class="track unlocked"><span class="tname">Home Assistant integration</span><span class="ttag">Parallel</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="indep">
+      <span class="iname">zm-next → replace zmc / zma</span>
+      <span class="isub">independent timeline · off the critical path · per-camera cutover</span>
+      <span class="itag">Stage 3 · optional</span>
+    </div>
+    <p class="figcap">One release unblocks four client tracks; the C++ core replacement stays on a separate, optional timeline.</p>
+  </section>
 
-  <rect class="box-client" x="552" y="78" width="320" height="50" rx="8"/>
-  <text class="t-label" x="712" y="98"  text-anchor="middle">All clients</text>
-  <text class="t-sub"   x="712" y="115" text-anchor="middle">dashboard &middot; zmNinjaNg &middot; mobile &middot; Home Assistant &middot; 3rd-party</text>
+  <section class="reveal">
+    <span class="secnum">07 — Principles</span>
+    <h2>What guides the work</h2>
+    <ul class="clean col">
+      <li><strong>One API, one auth model.</strong> Every client speaks the same documented surface. No client reaches into the database.</li>
+      <li><strong>Coexist, then cut over.</strong> New components run alongside the existing system first and take over only once proven, with a clear path back. No flag-day migrations.</li>
+      <li><strong>Security by structure.</strong> Eliminate whole vulnerability classes — typed queries, auto-escaped templating, one auth model, memory safety — rather than patching endpoints one at a time.</li>
+      <li><strong>The C++ core replacement is optional.</strong> The modernization delivers its value through Stages 1–2 alone; <code>zm-next</code> is a long-horizon bonus, not a prerequisite.</li>
+      <li><strong>Open source, sustainably.</strong> The new components are AGPL-licensed (<code>zm-api</code> and <code>zm-next</code> dual-licensed AGPL/commercial), carrying forward ZoneMinder's copyleft lineage.</li>
+    </ul>
+  </section>
 
-  <path class="edge-api" marker-end="url(#arr1a)" d="M712,128 L712,176"/>
+  <section class="reveal">
+    <span class="secnum">08 — Contribute</span>
+    <h2>How to follow along &amp; help</h2>
+    <p class="col">The near-term focus is getting <strong>zm-api to its first release</strong> — that single milestone unblocks the dashboard, the mobile apps, and the Home Assistant integration. The most useful contributions right now:</p>
+    <ul class="clean col">
+      <li><strong>Run zm-api in passive mode</strong> alongside an existing install and report what does and doesn't match current behaviour.</li>
+      <li><strong>Test zmNinjaNg and the dashboard</strong> against zm-api, especially live and recorded streaming on real devices.</li>
+      <li><strong>Help with the Home Assistant integration</strong>, which is open for community ownership.</li>
+      <li><strong>Exercise zm-next</strong> on real cameras and hardware if the next-generation engine interests you.</li>
+    </ul>
+    <p class="col" style="color:var(--faint);font-size:0.9rem">Open questions still being worked through with the community: the eventual home of these repositories under the ZoneMinder organisation, per-stage release targets, and the shape of the auth bridge during the UI transition. Feedback is welcome through the usual ZoneMinder channels.</p>
+  </section>
 
-  <rect class="box-api" x="572" y="182" width="280" height="92" rx="9"/>
-  <text class="t-api" x="712" y="214" text-anchor="middle">zm-api</text>
-  <text class="t-sub" x="712" y="236" text-anchor="middle">one REST / WS API</text>
-  <text class="t-sub" x="712" y="253" text-anchor="middle">data (SeaORM) &middot; daemon control &middot; streaming</text>
-
-  <path class="edge-api" marker-end="url(#arr1a)" d="M712,274 L712,318"/>
-
-  <rect class="box-db" x="552" y="324" width="320" height="66" rx="8"/>
-  <text class="t-label" x="712" y="350" text-anchor="middle">Database &nbsp;+&nbsp; capture / analysis workers</text>
-  <text class="t-sub"   x="712" y="368" text-anchor="middle">legacy C++ now &rarr; zm-next later</text>
-</svg>
-<div class="legend">
-  <span><i class="swatch" style="background:#f7eceb;border-color:#e2c4c0"></i>legacy / to retire</span>
-  <span><i class="swatch" style="background:var(--accent-soft);border-color:#bcdfcd"></i>clients</span>
-  <span><i class="swatch" style="background:var(--api-soft);border-color:var(--api-line)"></i>zm-api</span>
-  <span><i class="swatch" style="background:#eef1f4;border-color:#cfd6dd"></i>data / workers</span>
+  <hr>
+  <footer>
+    <p class="mono">ZoneMinder Modernization Roadmap · public edition</p>
+    <p>This roadmap describes intended direction, not a commitment to dates or specific versions. CVE figures are from published advisories (NVD / GitHub Advisory Database, 2013–2024) and component attribution reflects the affected file paths; counts are approximate. Status reflects the projects as of mid-2026 and will evolve.</p>
+  </footer>
 </div>
-<figcaption>Many paths into the database collapse to a single service that every client speaks to.</figcaption>
-</figure>
 
-<h2>3. The projects</h2>
-<p>The pieces of this future largely exist already, at different stages of maturity:</p>
-<table>
-  <thead>
-    <tr><th>Project</th><th>Stack / role</th><th>Status</th><th>What it does</th></tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td><code>zm-api</code></td>
-      <td>Rust · Axum · SeaORM — API + daemon control + streaming</td>
-      <td><span class="pill m-active">active</span><br><span class="footnote">pre-release</span></td>
-      <td>One service for data, control, and streaming: a broad REST/WS API; daemon management that takes over from <code>zmdc</code>/<code>zmpkg</code>/<code>zmu</code> with a compatibility shim and a passive↔active rollout; HLS/WebRTC/VOD streaming that replaces <code>zms</code>/<code>nph-zms</code>; JWT auth with role- and row-level access control; deb/rpm/AUR packaging. In active hardening toward a first release.</td>
-    </tr>
-    <tr>
-      <td><code>zm-dashboard</code></td>
-      <td>React · TypeScript · Vite · Tailwind — web frontend</td>
-      <td><span class="pill m-active">active</span></td>
-      <td>The new web UI. Talks only to zm-api; a dual-skin design (modern plus classic-compatible) eases the transition for existing users.</td>
-    </tr>
-    <tr>
-      <td><code>zmNinjaNg</code></td>
-      <td>React · TypeScript · Capacitor · Electron</td>
-      <td><span class="pill m-released">released</span></td>
-      <td>The cross-platform mobile and desktop client, with published binaries (<code>v1.1.15</code>). Repoints at zm-api as part of Stage 1.</td>
-    </tr>
-    <tr>
-      <td>mobile (Apple)</td>
-      <td>Swift · SwiftUI</td>
-      <td><span class="pill m-early">in development</span></td>
-      <td>Native iOS + tvOS client built on a shared core; consumes zm-api.</td>
-    </tr>
-    <tr>
-      <td>mobile (Android)</td>
-      <td>Kotlin · Jetpack Compose · Media3</td>
-      <td><span class="pill m-early">in development</span></td>
-      <td>Native Android client; consumes zm-api.</td>
-    </tr>
-    <tr>
-      <td><code>zm-next</code></td>
-      <td>C++20 · CMake · FFmpeg · ONNX Runtime — capture/analysis engine</td>
-      <td><span class="pill m-proto">in development</span></td>
-      <td>A next-generation, per-monitor worker: a plugin pipeline (capture → decode → motion → detect → track → record/stream) wired together by JSON, each stage on its own thread, served to zm-api over one socket. Around 30 plugins, with an embedded AI tier (object/pose/segmentation detection, audio events, tracking, scene description) and an optional GPU zero-copy path. Optional and on a long horizon; currently in validation and hardening.</td>
-    </tr>
-    <tr>
-      <td>Home Assistant integration</td>
-      <td>(planned)</td>
-      <td><span class="pill m-planned">planned</span></td>
-      <td>A first-class HA integration that consumes zm-api, alongside the other clients.</td>
-    </tr>
-  </tbody>
-</table>
-<p>
-<strong>Where things stand:</strong> zmNinjaNg has shipped. <code>zm-api</code> is the keystone — broad and capable, and in active hardening toward its first release. The dashboard and the native mobile apps are ready to move as soon as the API stabilises. <code>zm-next</code> has grown into a substantial engine with a working capture-to-record pipeline and AI tier; what remains is validation and per-camera cutover. The whole plan turns on one event: <strong>zm-api's first solid release</strong>.
-</p>
+<script>
+  (function () {
+    var root = document.documentElement;
+    root.classList.add('js');
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-<h2>4. The stages</h2>
+    // scroll progress
+    var bar = document.getElementById('progress');
+    function onScroll() {
+      var h = document.documentElement;
+      var max = h.scrollHeight - h.clientHeight;
+      bar.style.width = (max > 0 ? (h.scrollTop / max) * 100 : 0) + '%';
+    }
+    document.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
 
-<div class="stage">
-  <span class="tag">Stage 1 — current focus</span>
-  <h3>zm-api reaches a first release and takes over the API, daemon, and streaming</h3>
-  <p><code>zm-api</code> replaces the <strong>CakePHP 2.x API</strong>, takes over the <strong>daemon layer</strong> (<code>zmdc</code>/<code>zmpkg</code>/<code>zmu</code>, via a manager and a compatibility socket), and serves <strong>live and recorded streaming</strong> (HLS/WebRTC/VOD, replacing <code>zms</code>/<code>nph-zms</code>). <strong>zmNinjaNg cuts over</strong> to the new API.</p>
-  <p><strong>Rollout:</strong> ship <em>passive</em> first — the API runs alongside stock ZoneMinder, REST-only — then flip to <em>active</em> takeover of daemon control once proven on real installs. Passive-first is the key de-risker for replacing daemon control on production systems.</p>
-</div>
-
-<div class="stage">
-  <span class="tag">Stage 2 — next</span>
-  <h3>zm-dashboard replaces the PHP frontend</h3>
-  <p>The React <code>zm-dashboard</code> becomes the web UI, talking <strong>only</strong> to zm-api — no PHP component touches the database any more. Its dual-skin design (a modern view plus a classic-compatible view) smooths the transition. Once it reaches parity, <strong>CakePHP and the PHP classic skin are retired</strong>. A single sign-on bridge during the coexistence window keeps users from juggling two logins.</p>
-</div>
-
-<div class="stage optional">
-  <span class="tag">Stage 3 — optional / long horizon</span>
-  <h3>zm-next replaces the C++ capture/analysis core</h3>
-  <p>The plugin-pipeline worker <code>zm-next</code> replaces <code>zmc</code>/<code>zma</code>, supervised by zm-api. This is deliberately the <strong>optional</strong> endgame. The engine is largely built — capture, decode, motion, detection, tracking, recording, and streaming all run as hot-swappable plugins, validated end-to-end on file inputs. The remaining work is the hard part of any new core: validation on real cameras at scale, recording hardening, broader GPU support, and <strong>per-camera cutover with legacy fallback</strong>. It <strong>does not block Stages 1–2</strong> — the modernization stands on its own even if the existing C++ core is kept indefinitely.</p>
-</div>
-
-<div class="stage">
-  <span class="tag">Parallel — client track</span>
-  <h3>Mobile (Apple/Android) + Home Assistant integration</h3>
-  <p>The native mobile apps and a new Home Assistant integration are independent clients that all consume zm-api. They move in parallel, once there is a stable API surface to build against. <code>zmNinjaNg</code> simply repoints at the new API as part of Stage 1.</p>
-</div>
-
-<h2>5. Dependency &amp; sequencing</h2>
-<p>
-Nearly everything turns on <strong>one event: zm-api's first solid release</strong>. zmNinjaNg only needs to repoint; the dashboard, mobile apps, and Home Assistant integration build on a stable API surface. <code>zm-next</code> runs on its own long-horizon, optional track. This is a sequence of milestones, not a dated schedule.
-</p>
-
-<figure>
-<svg class="diagram" viewBox="0 0 920 392" role="img" aria-labelledby="d2t d2d">
-  <title id="d2t">Dependency and sequencing</title>
-  <desc id="d2d">zm-api's first release unblocks the zmNinjaNg cutover, the zm-dashboard, the mobile apps, and the Home Assistant integration. zm-next runs on an independent, optional track.</desc>
-  <defs>
-    <marker id="arr2a" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-      <path d="M0,0 L10,5 L0,10 z" fill="#3a7fb0"/>
-    </marker>
-  </defs>
-
-  <rect class="box-api" x="26" y="116" width="168" height="100" rx="10"/>
-  <text class="t-api" x="110" y="156" text-anchor="middle">zm-api</text>
-  <text class="t-sub" x="110" y="178" text-anchor="middle">first solid release</text>
-  <text class="t-tag" x="110" y="198" text-anchor="middle" fill="#1b4f78">THE ONE GATE</text>
-
-  <path class="edge-api" marker-end="url(#arr2a)" d="M194,150 C320,150 300,52  428,52"/>
-  <path class="edge-api" marker-end="url(#arr2a)" d="M194,160 C320,160 300,120 428,120"/>
-  <path class="edge-api" marker-end="url(#arr2a)" d="M194,172 C320,172 300,188 428,188"/>
-  <path class="edge-api" marker-end="url(#arr2a)" d="M194,182 C320,182 300,256 428,256"/>
-
-  <g>
-    <rect class="box-client" x="430" y="28" width="446" height="48" rx="8"/>
-    <text class="t-label" x="448" y="57">zmNinjaNg cutover</text>
-    <text class="t-tag"   x="858" y="57" text-anchor="end">STAGE 1</text>
-
-    <rect class="box-client" x="430" y="96" width="446" height="48" rx="8"/>
-    <text class="t-label" x="448" y="125">zm-dashboard &rarr; retire CakePHP + PHP skin</text>
-    <text class="t-tag"   x="858" y="125" text-anchor="end">STAGE 2</text>
-
-    <rect class="box" x="430" y="164" width="446" height="48" rx="8"/>
-    <text class="t-label" x="448" y="193">Mobile — Apple / Android</text>
-    <text class="t-tag"   x="858" y="193" text-anchor="end">PARALLEL</text>
-
-    <rect class="box" x="430" y="232" width="446" height="48" rx="8"/>
-    <text class="t-label" x="448" y="261">Home Assistant integration</text>
-    <text class="t-tag"   x="858" y="261" text-anchor="end">PARALLEL</text>
-  </g>
-
-  <rect class="box-proto" x="26" y="312" width="850" height="56" rx="9" stroke-dasharray="6 4"/>
-  <text class="t-label" x="46" y="338">zm-next &rarr; replace <tspan font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12.5px">zmc</tspan> / <tspan font-family="ui-monospace, Menlo, Consolas, monospace" font-size="12.5px">zma</tspan> (C++ capture/analysis core)</text>
-  <text class="t-tag" x="856" y="338" text-anchor="end" fill="#9a7726">STAGE 3 &middot; OPTIONAL</text>
-  <text class="t-sub" x="46" y="356">independent timeline &middot; off the critical path &middot; per-camera cutover with legacy fallback</text>
-</svg>
-<figcaption>One release unblocks four client tracks; the C++ core replacement stays on a separate, optional timeline.</figcaption>
-</figure>
-
-<h2>6. Design principles</h2>
-<ul>
-  <li><strong>One API, one auth model.</strong> Every client — web, mobile, Home Assistant, third-party — speaks the same documented surface. No client reaches into the database.</li>
-  <li><strong>Coexist, then cut over.</strong> New components run alongside the existing system first and take over only once proven, with a clear path back. No flag-day migrations.</li>
-  <li><strong>Single sign-on across the transition.</strong> While the new and old UIs coexist, users get one login, not two.</li>
-  <li><strong>The C++ core replacement is optional.</strong> The modernization delivers its value through Stages 1–2 alone; <code>zm-next</code> is a long-horizon bonus, not a prerequisite.</li>
-  <li><strong>Open source, sustainably.</strong> The new components are AGPL-licensed (<code>zm-api</code> and <code>zm-next</code> are dual-licensed AGPL/commercial), carrying forward ZoneMinder's copyleft lineage.</li>
-</ul>
-
-<h2>7. How to follow along &amp; contribute</h2>
-<p>
-The near-term focus is getting <strong>zm-api to its first release</strong> — that single milestone unblocks the dashboard, the mobile apps, and the Home Assistant integration. The most useful contributions right now:
-</p>
-<ul>
-  <li><strong>Try zm-api in passive mode</strong> alongside an existing install and report what does and doesn't match the current behaviour.</li>
-  <li><strong>Test zmNinjaNg and the dashboard</strong> against zm-api, especially live and recorded streaming on real devices.</li>
-  <li><strong>Help with the Home Assistant integration</strong>, which is open for community ownership.</li>
-  <li><strong>Exercise zm-next</strong> on real cameras and hardware if you're interested in the next-generation engine.</li>
-</ul>
-<p class="footnote">
-Open questions still being worked through with the community include the eventual home of these repositories under the ZoneMinder organisation, per-stage release targets, and the shape of the auth bridge during the UI transition. Feedback is welcome through the usual ZoneMinder channels.
-</p>
-
-<hr>
-<p class="footnote">
-This roadmap describes intended direction, not a commitment to dates or specific versions. Status reflects the projects as of mid-2026 and will evolve.
-</p>
-
+    // reveal on scroll
+    var items = document.querySelectorAll('.reveal');
+    if (reduce || !('IntersectionObserver' in window)) {
+      items.forEach(function (el) { el.classList.add('in'); });
+    } else {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+        });
+      }, { rootMargin: '0px 0px -8% 0px', threshold: 0.06 });
+      items.forEach(function (el) { io.observe(el); });
+    }
+  })();
+</script>
 </body>
 </html>
