@@ -20,8 +20,6 @@ set(TEST_SOURCES
   zm_font.cpp
   zm_image.cpp
   zm_monitorstream.cpp
-  zm_onvif_renewal.cpp
-  zm_onvif_wsse.cpp
   zm_pixformat.cpp
   zm_swscale_range.cpp
   zm_poly.cpp
@@ -33,6 +31,14 @@ set(TEST_SOURCES
   zm_image_linesize.cpp
   zm_ffmpeg_camera.cpp
   zm_ffmpeg_fallback.cpp)
+
+# The ONVIF tests include gsoap-generated headers, so they can only be
+# built when gsoap was found and generation is enabled.
+if(GSOAP_FOUND)
+  list(APPEND TEST_SOURCES
+    zm_onvif_renewal.cpp
+    zm_onvif_wsse.cpp)
+endif()
 
 add_executable(tests main.cpp ${TEST_SOURCES})
 
