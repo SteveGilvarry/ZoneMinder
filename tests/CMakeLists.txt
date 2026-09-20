@@ -24,6 +24,7 @@ set(TEST_SOURCES
   zm_font.cpp
   zm_image.cpp
   zm_monitorstream.cpp
+  zm_packetqueue.cpp
   zm_monitor_action.cpp
   zm_onvif_auth_error.cpp
   zm_onvif_renewal.cpp
@@ -34,6 +35,10 @@ set(TEST_SOURCES
   zm_stream_races.cpp
   zm_swscale_range.cpp
   zm_poly.cpp
+  zm_stream_socket.cpp
+  zm_stream_socket_bench.cpp
+  zm_stream_socket_client.cpp
+  zm_stream_socket_protocol.cpp
   zm_time.cpp
   zm_utils.cpp
   zm_vector2.cpp
